@@ -6,16 +6,15 @@
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-<meta name="description" content="SSM — Skyle Skin Maker: визуальный конструктор скинов для P2P-мессенджера Skyle. Работает полностью локально.">
+<meta name="description" content="SSM — Skyle Skin Maker: визуальный конструктор скинов для P2P-мессенджера Skyle. Проверка значений — точная копия валидатора Skyle. Работает полностью локально.">
 <title>SSM — Skyle Skin Maker</title>
 <link rel="icon" href="data:,">
 <style>
 /* ============================================================
-   SSM — Skyle Skin Maker.
+   SSM — Skyle Skin Maker (v2, совместим с реальным Skyle).
    Стиль самого редактора — нейтральный ч/б «в духе Skyle»
-   (переменные --s-*). Переменные скина (--bg, --fg, ...) используются
-   ТОЛЬКО внутри контейнера предпросмотра .pv и никак не влияют
-   на панель настроек.
+   (переменные --s-*). Переменные скина (--bg, --fg, ...) живут
+   ТОЛЬКО внутри контейнера предпросмотра .pv и не влияют на панель.
    ============================================================ */
 
 /* ---------- Нейтральная тема редактора (не скин!) ---------- */
@@ -106,6 +105,7 @@ select.sinp{min-height:36px;padding:6px 8px;cursor:pointer}
 .schk{display:inline-flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.06em;color:var(--s-muted);cursor:pointer}
 .schk input{width:14px;height:14px;accent-color:var(--s-fg);flex:none}
 .shint{font-size:10px;color:var(--s-muted);line-height:1.55;margin-top:8px}
+.shint b{color:var(--s-fg);font-weight:700}
 .serr{
   display:block;border:1px solid var(--s-err);color:var(--s-err);
   padding:8px 10px;margin-top:8px;font-size:11px;line-height:1.5;
@@ -166,130 +166,175 @@ input[type=color]::-moz-color-swatch{border:none}
 .s-modal-bt{display:flex;gap:8px;margin-top:12px}
 .s-modal-bt .sbtn{flex:1}
 
+@keyframes stIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+
 /* ============================================================
-   ПРЕДПРОСМОТР SKYLE — статический макет интерфейса мессенджера.
-   Все цвета/формы берутся ИСКЛЮЧИТЕЛЬНО из переменных скина,
-   которые применяются на .pv через element.style.setProperty.
+   ПРЕДПРОСМОТР — точная реплика интерфейса Skyle.
+   Правила перенесены из таблицы стилей Skyle (классы сохранены),
+   ограничены контейнером .pv. Значения по умолчанию = :root
+   и [data-theme="dark"] из Skyle. Переменные скина применяются
+   на .pv через element.style.setProperty — как это делает Skyle.
    ============================================================ */
 .pv{
+  /* база Skyle (light) */
+  --bg:#ffffff; --fg:#000000; --muted:#6e6e6e;
+  --line:#000000; --line-soft:#d9d9d9;
+  --panel:#f2f2f2; --panel-2:#e4e4e4;
+  --inv-bg:#000000; --inv-fg:#ffffff;
+  --accent:#000000; --accent-fg:#ffffff;
+  --msg-own-bg:transparent; --msg-own-fg:var(--fg);
+  --msg-peer-bg:transparent; --msg-peer-fg:var(--fg);
+  --topbar-bg:var(--inv-bg); --topbar-fg:var(--inv-fg);
+  --overlay:rgba(0,0,0,.5);
+  --radius:0; --radius-lg:0;
+  --font:ui-monospace,"SF Mono",Consolas,"Liberation Mono",monospace;
+  --font-size:14px;
+  --border-width:1px;
+  --shadow:none; --shadow-strong:none; --glow:none;
+  --blur:0px; --panel-alpha:1;
+  --bg-image:none; --bg-size:auto; --bg-attachment:scroll;
+  --cubic:cubic-bezier(.2,.8,.2,1);
+  /* тёмная база Skyle */
+}
+.pv[data-mode="dark"]{
+  --bg:#000000; --fg:#ffffff; --muted:#9a9a9a;
+  --line:#ffffff; --line-soft:#2b2b2b;
+  --panel:#141414; --panel-2:#202020;
+  --inv-bg:#ffffff; --inv-fg:#000000;
+  --accent:#ffffff; --accent-fg:#000000;
+}
+.pv{
   position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;
-  font-family:var(--font);font-size:var(--font-size);line-height:1.45;color:var(--fg);
-  background-color:var(--bg);background-image:var(--bg-image);background-position:center;
-  background-size:var(--bg-size);background-attachment:var(--bg-attachment);
+  background-color:var(--bg);color:var(--fg);
+  background-image:var(--bg-image);background-size:var(--bg-size);
+  background-attachment:var(--bg-attachment);
+  font-family:var(--font);font-size:var(--font-size);line-height:1.45;
 }
 .pv *{min-width:0}
 .pv-screen{position:absolute;inset:0;display:none;flex-direction:column}
 .pv-screen.on{display:flex}
 .pv-sp{flex:1}
-.pv-topbar{
-  display:flex;align-items:center;gap:8px;min-height:48px;padding:0 8px;flex:none;
-  background:var(--topbar-bg);color:var(--topbar-fg);
-  backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
-}
-.pv-logo{font-weight:700;letter-spacing:.3em;padding:0 6px;font-size:.9em}
-.pv-bt{font-size:.85em;letter-spacing:.08em;white-space:nowrap;padding:2px 4px}
-.pv-tt{display:flex;flex-direction:column;line-height:1.25;min-width:0;flex:1}
-.pv-tt b{font-size:.92em;letter-spacing:.06em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pv-tt i{font-style:normal;opacity:.7;font-size:.68em;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* тело чата + панель участников */
-.pv-body{flex:1;display:flex;min-height:0}
-.pv-chat{flex:1;display:flex;flex-direction:column;min-width:0}
-.pv-msgs{flex:1;overflow:hidden;padding:8px 0 2px;display:flex;flex-direction:column;justify-content:flex-end;gap:2px}
-.pv-sys{text-align:center;color:var(--muted);font-size:.78em;letter-spacing:.06em;margin:4px 0}
-.pv-mrow{display:flex;padding:2px 10px}
-.pv-mrow.own{justify-content:flex-end}
-.pv-bub{
-  max-width:82%;padding:6px 10px;font-size:.92em;word-break:break-word;
-  border:var(--border-width) solid var(--line);border-radius:var(--radius);
-  background:var(--msg-peer-bg);color:var(--msg-peer-fg);box-shadow:var(--shadow);
+/* верхняя панель (инвертированная) */
+.pv .topbar{display:flex;align-items:center;gap:6px;min-height:48px;padding:0 6px;flex:none;background:var(--topbar-bg);color:var(--topbar-fg)}
+.pv .logo{font-weight:700;letter-spacing:.3em;font-size:14px;padding:0 8px}
+.pv .btn-top{
+  border:none;background:transparent;color:inherit;font-size:12px;letter-spacing:.1em;
+  min-height:44px;padding:0 8px;cursor:pointer;white-space:nowrap;border-radius:var(--radius);
 }
-.pv-mrow.own .pv-bub{background:var(--msg-own-bg);color:var(--msg-own-fg)}
-.pv-bt2{display:block;font-size:.68em;opacity:.65;margin-top:3px;letter-spacing:.04em}
-.pv-typing{display:flex;align-items:center;gap:4px;padding:2px 12px 4px;flex:none}
-.pv-typing i{width:5px;height:5px;background:var(--fg);animation:tpulse 1s infinite}
-.pv-typing i:nth-child(2){animation-delay:.2s}
-.pv-typing i:nth-child(3){animation-delay:.4s}
-.pv-typing span{font-size:.66em;color:var(--muted);letter-spacing:.08em;margin-left:2px}
-.pv-hint{padding:3px 12px;border-top:1px solid var(--line-soft);font-size:.62em;letter-spacing:.06em;color:var(--muted);flex:none}
-.pv-inputrow{
-  display:flex;gap:6px;padding:8px;border-top:var(--border-width) solid var(--line);flex:none;align-items:stretch;
-  background:var(--panel);
-  background:color-mix(in srgb, var(--panel) calc(var(--panel-alpha)*100%), transparent);
-  backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
-}
-.pv-ico{width:36px;min-height:36px;display:flex;align-items:center;justify-content:center;flex:none;border:var(--border-width) solid var(--fg);border-radius:var(--radius);color:var(--fg)}
-.pv-ico.send{box-shadow:var(--glow)}
-.pv-input{flex:1;display:flex;align-items:center;border:var(--border-width) solid var(--fg);border-radius:var(--radius);padding:8px 10px;font-size:.9em;color:var(--muted);min-height:38px}
-.pv-members{
-  width:116px;flex:none;display:flex;flex-direction:column;border-left:var(--border-width) solid var(--line);
-  background:var(--panel);
-  background:color-mix(in srgb, var(--panel) calc(var(--panel-alpha)*100%), transparent);
-  backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
-}
-.pv-mhead{
-  padding:6px 8px;border-bottom:var(--border-width) solid var(--line);font-size:.66em;letter-spacing:.1em;
-  background:var(--panel-2);
-  background:color-mix(in srgb, var(--panel-2) calc(var(--panel-alpha)*100%), transparent);
-}
-.pv-mrow2{display:flex;align-items:center;gap:6px;padding:7px 8px;border-bottom:1px solid var(--line-soft);font-size:.8em}
-.sq{width:8px;height:8px;border:1px solid var(--muted);flex:none;display:inline-block}
-.sq.on{background:var(--accent);border-color:var(--accent)}
+.pv .btn-top:hover{background:var(--topbar-fg);color:var(--topbar-bg)}
+.pv .tb-title{display:flex;flex-direction:column;line-height:1.25;min-width:0;padding:6px 0;flex:1}
+.pv .tb-title .t1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;letter-spacing:.08em}
+.pv .tb-title .t2{opacity:.7;font-size:10px;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* список комнат */
-.pv-tabs{display:flex;border-bottom:var(--border-width) solid var(--line);flex:none}
-.pv-tab{flex:1;min-height:40px;display:flex;align-items:center;justify-content:center;font-size:.8em;letter-spacing:.06em;border-right:var(--border-width) solid var(--line)}
-.pv-tab:last-child{border-right:none}
-.pv-tab.on{background:var(--fg);color:var(--bg);box-shadow:var(--glow)}
-.pv-list{flex:1;overflow:hidden}
-.pv-row{display:flex;align-items:center;gap:8px;padding:9px 10px;border-bottom:1px solid var(--line-soft)}
-.pv-row.cur{box-shadow:inset 3px 0 0 var(--accent)}
-.pv-rm{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3}
-.pv-rm b{font-size:.88em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pv-rm i{font-style:normal;font-size:.7em;color:var(--muted)}
-.pv-unread{background:var(--accent);color:var(--accent-fg);font-size:.66em;padding:1px 7px;flex:none}
-.pv-actions{margin-top:auto;padding:10px;display:flex;gap:8px;flex:none}
-.pv-btn{
-  flex:1;min-height:38px;display:flex;align-items:center;justify-content:center;text-align:center;
-  border:var(--border-width) solid var(--fg);border-radius:var(--radius);font-size:.78em;letter-spacing:.06em;padding:4px 8px;
+/* кнопки и поля */
+.pv .btn{
+  appearance:none;background:transparent;border:var(--border-width) solid var(--fg);color:var(--fg);
+  font-size:12px;letter-spacing:.08em;min-height:44px;padding:0 14px;cursor:pointer;border-radius:var(--radius);
 }
-.pv-btn.pri{background:var(--fg);color:var(--bg);box-shadow:var(--shadow),var(--glow)}
-.pv-btn.solo{margin-top:8px}
+.pv .btn:hover{background:var(--fg);color:var(--bg)}
+.pv .btn-primary{background:var(--accent);color:var(--accent-fg);box-shadow:var(--glow)}
+.pv .btn-primary:hover{background:var(--accent-fg);color:var(--accent)}
+.pv .btn-mini{padding:0 10px;font-size:11px}
+.pv .wide{width:100%;margin-top:8px}
+.pv .btn-icon{
+  min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;
+  border:var(--border-width) solid var(--fg);background:transparent;color:var(--fg);cursor:pointer;flex:none;
+  border-radius:var(--radius);
+}
+.pv .btn-icon:hover{background:var(--fg);color:var(--bg)}
+.pv .inp{
+  width:100%;background:transparent;border:var(--border-width) solid var(--fg);color:var(--fg);
+  font-size:16px;padding:10px 12px;min-height:44px;resize:none;border-radius:var(--radius);
+}
+.pv .inp:focus{outline:2px solid var(--accent);outline-offset:-2px}
+.pv span.inp{display:flex;align-items:center}
+.pv .lbl{font-size:11px;letter-spacing:.12em;color:var(--muted);margin:14px 0 6px}
+.pv .h{font-size:12px;letter-spacing:.14em;margin:18px 0 8px;padding-bottom:4px;border-bottom:var(--border-width) solid var(--line)}
+.pv .note{font-size:11px;color:var(--muted);margin:8px 0;line-height:1.5}
+.pv .bigid{font-size:30px;letter-spacing:.18em;padding:16px 0;text-align:center;font-weight:700;word-break:break-all}
+.pv .inline-row{display:flex;gap:8px;align-items:flex-start}
+.pv .inline-row .inp{flex:1}
+.pv .inline-row .btn{flex:none}
+.pv .muted{color:var(--muted)}
+.pv .small{font-size:11px;letter-spacing:.04em}
+.pv .flex-sp{flex:1}
+.pv .pad{padding:16px;overflow-y:auto;flex:1}
 
-/* профиль */
-.pv-pad{flex:1;overflow:hidden;padding:12px 14px}
-.pv-h{font-size:.82em;letter-spacing:.1em;margin:12px 0 6px;padding-bottom:4px;border-bottom:var(--border-width) solid var(--line)}
-.pv-pad .pv-h:first-child{margin-top:0}
-.pv-inp{display:flex;align-items:center;border:var(--border-width) solid var(--fg);border-radius:var(--radius);padding:8px 10px;font-size:.9em;min-height:38px}
-.pv-bigid{font-size:1.7em;letter-spacing:.14em;text-align:center;padding:12px 0;font-weight:700;word-break:break-all}
-.pv-mbtns{display:flex;gap:8px;margin-top:6px}
-.pv-seg{display:flex;border:var(--border-width) solid var(--fg);border-radius:var(--radius)}
-.pv-seg i{flex:1;font-style:normal;text-align:center;padding:8px 2px;font-size:.7em;letter-spacing:.04em;border-right:var(--border-width) solid var(--fg)}
-.pv-seg i:last-child{border-right:none}
-.pv-seg i.on{background:var(--fg);color:var(--bg)}
-.pv-note{font-size:.75em;color:var(--muted);margin-top:4px}
+/* вкладки и списки */
+.pv .tabs{display:flex;border-bottom:var(--border-width) solid var(--line);flex:none}
+.pv .tab{
+  flex:1;min-height:44px;background:transparent;border:none;border-right:var(--border-width) solid var(--line);
+  color:var(--fg);font-size:11px;letter-spacing:.06em;cursor:pointer;
+}
+.pv .tab:last-child{border-right:none}
+.pv .tab.on{background:var(--accent);color:var(--accent-fg)}
+.pv .tabbody{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-height:0}
+.pv .list{flex:none}
+.pv .row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:var(--border-width) solid var(--line-soft)}
+.pv .row-main{flex:1;min-width:0}
+.pv .row-t{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pv .row-s{margin-top:2px;display:flex;align-items:center;gap:6px}
+.pv .unread{font-weight:700}
+.pv .sq{width:10px;height:10px;border:var(--border-width) solid currentColor;flex:none;display:inline-block}
+.pv .sq.on{background:currentColor}
+.pv .menu-actions{margin-top:auto;padding:10px;display:flex;gap:8px;flex-wrap:wrap}
+.pv .menu-actions .btn{flex:1;min-width:140px}
+.pv .empty{
+  display:block;width:100%;min-height:44px;padding:16px;margin:10px 0;border:var(--border-width) solid var(--line);
+  background:transparent;color:var(--muted);text-align:center;cursor:pointer;font-size:12px;letter-spacing:.08em;
+  border-radius:var(--radius);
+}
+.pv .empty:hover{background:var(--fg);color:var(--bg)}
 
-/* модалка предпросмотра */
-.pv-modalwrap{position:absolute;inset:0;display:none;z-index:5}
+/* чат */
+.pv .msglist{flex:1;overflow-y:auto;padding:10px 0}
+.pv .msg{
+  padding:2px 12px;animation:pmsgIn .2s var(--cubic) both;
+  word-break:break-word;white-space:pre-wrap;overflow-wrap:anywhere;border-radius:var(--radius);
+}
+.pv .msg.self{border-left:2px solid var(--accent);margin-left:6px;padding-left:10px;background:var(--msg-own-bg);color:var(--msg-own-fg)}
+.pv .msg.peer{background:var(--msg-peer-bg);color:var(--msg-peer-fg)}
+.pv .msg.sys{color:var(--muted);text-align:center;font-size:12px;white-space:normal}
+.pv .mtime{color:var(--muted);font-size:12px;display:block;margin-top:2px}
+.pv .hint{padding:4px 12px;font-size:10px;letter-spacing:.08em;color:var(--muted);border-top:var(--border-width) solid var(--line-soft);flex:none}
+.pv .typing{display:flex;align-items:center;gap:4px;padding:4px 12px;flex:none}
+.pv .tdot{width:6px;height:6px;background:var(--accent);animation:ptp 1s infinite}
+.pv .tdot:nth-child(2){animation-delay:.2s}
+.pv .tdot:nth-child(3){animation-delay:.4s}
+.pv .inputrow{display:flex;gap:6px;padding:8px;border-top:var(--border-width) solid var(--line);align-items:flex-end;flex:none}
+.pv .inputrow textarea{flex:1}
+
+/* сегменты (тема) */
+.pv .seg{display:flex;border:var(--border-width) solid var(--fg);border-radius:var(--radius);overflow:hidden}
+.pv .seg-btn{
+  flex:1;min-height:44px;background:transparent;border:none;border-right:var(--border-width) solid var(--fg);
+  color:var(--fg);font-size:11px;letter-spacing:.06em;cursor:pointer;text-align:center;padding:0 2px;
+}
+.pv .seg-btn:last-child{border-right:none}
+.pv .seg-btn.on{background:var(--accent);color:var(--accent-fg)}
+
+/* модалка Skyle (в кадре предпросмотра — absolute) */
+.pv-modalwrap{position:absolute;inset:0;display:none;z-index:30}
 .pv-modalwrap.on{display:block}
-.pv-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.5)}
-.pv-modal{
-  position:absolute;left:16px;right:16px;top:50%;transform:translateY(-50%);
-  background:var(--bg);border:var(--border-width) solid var(--fg);border-radius:var(--radius-lg);
-  padding:14px;box-shadow:var(--shadow-strong);
+.pv .modal{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--overlay);padding:16px}
+.pv .modal-box{
+  background:var(--bg);border:var(--border-width) solid var(--fg);max-width:440px;width:100%;padding:16px;
+  border-radius:var(--radius-lg);box-shadow:var(--shadow-strong);
+  backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
 }
-.pv-mtitle{font-size:.85em;font-weight:700;letter-spacing:.1em;border-bottom:var(--border-width) solid var(--fg);padding-bottom:8px}
-.pv-mtext{font-size:.85em;line-height:1.5;margin-top:8px}
-.pv-modal .pv-mbtns{margin-top:12px}
+.pv .modal-text{font-size:13px;line-height:1.5;white-space:pre-wrap}
+.pv .modal-btns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.pv .modal-btns .btn{flex:1}
 
-/* упрощённый режим предпросмотра: без blur и тяжёлых эффектов */
+/* упрощённый режим предпросмотра: без blur, теней и анимаций */
 .pv.simple,.pv.simple *{
   backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
-  box-shadow:none!important;
+  box-shadow:none!important;animation:none!important;
 }
 
-@keyframes tpulse{0%,100%{opacity:.15}50%{opacity:1}}
-@keyframes stIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@keyframes pmsgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes ptp{0%,100%{opacity:.15}50%{opacity:1}}
 
 /* ---------- Адаптив ---------- */
 @media (max-width:899px){
@@ -313,9 +358,9 @@ input[type=color]::-moz-color-swatch{border:none}
 
 <!-- ШАПКА -->
 <header class="ssm-head">
-  <span class="ssm-logo">SKYLE <b>SKIN MAKER</b> <span>v1</span></span>
+  <span class="ssm-logo">SKYLE <b>SKIN MAKER</b> <span>v2</span></span>
   <span class="sp"></span>
-  <span class="head-note">конструктор скинов для P2P-мессенджера Skyle<br>всё считается локально в браузере</span>
+  <span class="head-note">конструктор скинов для P2P-мессенджера Skyle<br>проверка значений — как внутри Skyle · всё локально</span>
 </header>
 
 <!-- ВКЛАДКИ ДЛЯ ТЕЛЕФОНА -->
@@ -329,10 +374,10 @@ input[type=color]::-moz-color-swatch{border:none}
   <aside class="side" id="side">
 
     <details class="sg" open><summary>СКИН</summary><div class="sgb">
-      <label class="slbl" for="f-name">НАЗВАНИЕ СКИНА (ДО 30 СИМВОЛОВ)</label>
-      <input class="sinp" id="f-name" maxlength="30" autocomplete="off" spellcheck="false" placeholder="Aero">
-      <label class="slbl" for="f-author">АВТОР (ДО 30 СИМВОЛОВ)</label>
-      <input class="sinp" id="f-author" maxlength="30" autocomplete="off" spellcheck="false" placeholder="ник">
+      <label class="slbl" for="f-name">НАЗВАНИЕ СКИНА (ДО 40 СИМВОЛОВ)</label>
+      <input class="sinp" id="f-name" maxlength="40" autocomplete="off" spellcheck="false" placeholder="Aero">
+      <label class="slbl" for="f-author">АВТОР (НЕОБЯЗАТЕЛЬНО, ДО 40)</label>
+      <input class="sinp" id="f-author" maxlength="40" autocomplete="off" spellcheck="false" placeholder="ник">
       <span class="slbl">РЕЖИМ (ПОЛЕ MODE)</span>
       <div class="seg2" role="group" aria-label="Режим скина">
         <button type="button" class="seg-b" id="m-light" aria-pressed="true">СВЕТЛЫЙ</button>
@@ -342,7 +387,7 @@ input[type=color]::-moz-color-swatch{border:none}
         <button type="button" class="sbtn" id="btn-random">СЛУЧАЙНЫЙ СКИН</button>
         <button type="button" class="sbtn" id="btn-reset">СБРОСИТЬ</button>
       </div>
-      <div class="shint">Режим влияет на поле «mode» и на базовые цвета Classic. Переключение оставляет ваши кастомные цвета нетронутыми, а нетронутые базовые — перекрашивает.</div>
+      <div class="shint">Режим влияет на поле «mode» и на то, какая база Skyle (светлая или тёмная) лежит под переменными скина — точно как в Skyle: база берётся из mode, поверх применяются vars. Ваши кастомные цвета при переключении не трогаются.</div>
     </div></details>
 
     <details class="sg" open><summary>ПРЕСЕТЫ</summary><div class="sgb">
@@ -351,11 +396,12 @@ input[type=color]::-moz-color-swatch{border:none}
 
     <details class="sg" open><summary>ЦВЕТА</summary><div class="sgb">
       <div id="g-colors"></div>
-      <div class="shint">Форматы: #hex, rgb(), rgba(), hsl(), hsla(). Пустое поле — вернуть значение по умолчанию. Чип рядом с «текстовыми» переменными — контраст по WCAG (норма 4.5:1).</div>
+      <div class="shint">Форматы: #hex, rgb(), rgba(), hsl(), hsla(). Пустое поле — значение по умолчанию Skyle. Чип рядом с переменной — контраст пары по WCAG (норма 4.5:1), прозрачные цвета смешиваются с фоном как в Skyle.</div>
     </div></details>
 
     <details class="sg" open><summary>ФОРМА</summary><div class="sgb">
       <div id="g-shape"></div>
+      <div class="shint">Диапазоны Skyle: радиусы 0–64px, толщина рамок 0–6px.</div>
     </div></details>
 
     <details class="sg" open><summary>ТЕКСТ</summary><div class="sgb">
@@ -364,7 +410,7 @@ input[type=color]::-moz-color-swatch{border:none}
 
     <details class="sg" open><summary>ЭФФЕКТЫ</summary><div class="sgb">
       <div id="g-fx"></div>
-      <div class="shint">Тень/свечение пишутся в формате box-shadow: «смещение смешение размытие цвет», например 0 4px 16px rgba(0,0,0,.2). Blur размывает панели изнутри (backdrop-filter).</div>
+      <div class="shint">Тень/свечение пишутся в формате box-shadow: «смещение смешение размытие цвет», например 0 4px 16px rgba(0,0,0,.2). Диапазоны Skyle: --blur 0–32px (размытие оверлеев и окон), --panel-alpha 0–1 (подсветка участников при наведении).</div>
     </div></details>
 
     <details class="sg" open><summary>ФОН</summary><div class="sgb">
@@ -374,21 +420,24 @@ input[type=color]::-moz-color-swatch{border:none}
         <div class="ctl-top"><span class="ctl-l">Угол градиента</span><span class="sval" id="sv:grad-a">160°</span></div>
         <input type="range" id="in:grad-a" min="0" max="360" step="1" aria-label="Угол градиента">
       </div>
-      <button type="button" class="sbtn wide" id="bg-none">УБРАТЬ ФОН (NONE)</button>
-      <span class="slbl">ИЛИ КАРТИНКА (ДО 1 МБ, ВСТРАИВАЕТСЯ В СКИН)</span>
+      <button type="button" class="sbtn wide" id="bg-none">УБРАТЬ ФОН</button>
+      <span class="slbl">ИЛИ КАРТИНКА (ДО ~1 МБ, ВСТРАИВАЕТСЯ В СКИН)</span>
       <button type="button" class="sbtn wide" id="bg-img-btn">ЗАГРУЗИТЬ КАРТИНКУ…</button>
       <input type="file" id="bg-img-file" accept="image/png,image/jpeg,image/webp,image/*" hidden>
       <div class="shint" id="bg-info"></div>
-      <span class="slbl">МАСШТАБ (BACKGROUND-SIZE)</span>
+      <span class="slbl">МАСШТАБ (--BG-SIZE)</span>
       <select class="sinp" id="bg-size" aria-label="Размер фоновой картинки">
+        <option value="">по умолчанию (auto)</option>
         <option value="cover">cover — заполнить</option>
         <option value="contain">contain — вписать</option>
         <option value="auto">auto — как есть</option>
       </select>
-      <span class="slbl">ПРОКРУТКА (BACKGROUND-ATTACHMENT)</span>
+      <span class="slbl">ПРОКРУТКА (--BG-ATTACHMENT)</span>
       <select class="sinp" id="bg-att" aria-label="Прокрутка фона">
+        <option value="">по умолчанию (scroll)</option>
         <option value="fixed">fixed — не прокручивается</option>
         <option value="scroll">scroll — прокручивается</option>
+        <option value="local">local — прокручивается с содержимым</option>
       </select>
     </div></details>
 
@@ -397,20 +446,21 @@ input[type=color]::-moz-color-swatch{border:none}
       <button type="button" class="sbtn wide" id="btn-cjson">КОПИРОВАТЬ JSON</button>
       <button type="button" class="sbtn wide" id="btn-clink">КОПИРОВАТЬ ССЫЛКУ</button>
       <div class="shint" id="exp-info"></div>
-      <div class="shint">Ссылка вида …/#skin=… открывает Skyle сразу с этим скином. SSM тоже понимает такие ссылки — откройте её в браузере, чтобы отредактировать скин здесь.</div>
+      <div class="serr" id="exp-err" hidden></div>
+      <div class="shint">Ссылка вида triuzed.github.io/skyle/#skin=… открывает Skyle сразу с этим скином (Skyle спросит подтверждение). SSM тоже понимает такие ссылки — откройте её здесь, чтобы продолжить редактирование.</div>
     </div></details>
 
     <details class="sg" open><summary>ИМПОРТ</summary><div class="sgb">
       <button type="button" class="sbtn wide" id="btn-file">ОТКРЫТЬ ФАЙЛ .JSON</button>
       <input type="file" id="imp-file" accept=".json,application/json" hidden>
       <label class="slbl" for="imp-text">ИЛИ ВСТАВЬТЕ JSON</label>
-      <textarea class="sinp" id="imp-text" rows="4" spellcheck="false" placeholder='{"ssm":1,"name":"Aero","vars":{...}}'></textarea>
+      <textarea class="sinp" id="imp-text" rows="4" spellcheck="false" placeholder='{"ssm":1,"name":"Aero","mode":"light","vars":{"--bg":"#d8ebff","--radius":"10px"}}'></textarea>
       <button type="button" class="sbtn wide" id="btn-imp">ИМПОРТИРОВАТЬ</button>
       <div class="serr" id="imp-err" hidden></div>
-      <div class="shint">Ссылка с #skin=… импортируется автоматически при открытии страницы. Неизвестные переменные игнорируются, некорректные значения отбрасываются с предупреждением.</div>
+      <div class="shint">Проверка — точная копия валидатора Skyle: если скин принят здесь, его примет и Skyle. SSM также чинит скины, которые Skyle сохранил с развёрнутым шрифтом (после перезапуска страницы они перестают применяться — импортируйте их сюда и пересохраните).</div>
     </div></details>
 
-    <div class="shint">SSM 1.0 · формат скина: {"ssm":1,"name","author","mode","vars"} · черновик автосохраняется в localStorage (ssm_draft).</div>
+    <div class="shint">SSM 2.0 · формат: {"ssm":1,"name","author","mode","vars"} · в JSON пишутся только изменённые переменные, остальное Skyle добирает из своей базы · черновик автосохраняется в localStorage (ssm_draft).</div>
   </aside>
 
   <!-- ================= ПРЕДПРОСМОТР ================= -->
@@ -426,99 +476,95 @@ input[type=color]::-moz-color-swatch{border:none}
     </div>
     <div class="pv-wrap">
       <div class="pv-frame">
-        <div class="pv" id="pv">
+        <div class="pv" id="pv" data-mode="light">
 
-          <!-- экран ЧАТ -->
+          <!-- ЭКРАН: ЧАТ КОМНАТЫ (как #scr-room в Skyle) -->
           <div class="pv-screen on" data-pvs="chat">
-            <div class="pv-topbar">
-              <span class="pv-bt">&lt; НАЗАД</span>
-              <span class="pv-tt"><b>АЭРО-КЛУБ</b><i>КОМНАТА · 3 УЧАСТНИКА</i></span>
-              <span class="pv-bt">ЗВОНОК</span>
-              <span class="pv-bt">УЧАСТНИКИ</span>
+            <div class="topbar">
+              <button type="button" class="btn-top">&lt; НАЗАД</button>
+              <span class="tb-title"><span class="t1">СЕКРЕТНЫЙ ШТАБ</span><span class="t2">3 УЧАСТНИКА · P2P</span></span>
+              <span class="flex-sp"></span>
+              <button type="button" class="btn-top">ЗВОНОК</button>
+              <button type="button" class="btn-top">УЧАСТНИКИ</button>
             </div>
-            <div class="pv-body">
-              <div class="pv-chat">
-                <div class="pv-msgs">
-                  <div class="pv-sys">TRIU СОЗДАЛ КОМНАТУ · P2P</div>
-                  <div class="pv-mrow peer"><div class="pv-bub">Привет! Это предпросмотр скина — всё живое.<span class="pv-bt2">14:02</span></div></div>
-                  <div class="pv-mrow own"><div class="pv-bub">Да: цвета, радиусы, тени применяются сразу.<span class="pv-bt2">14:03</span></div></div>
-                  <div class="pv-mrow peer"><div class="pv-bub">А blur и свечение?<span class="pv-bt2">14:04</span></div></div>
-                  <div class="pv-mrow own"><div class="pv-bub">Смотри сам — двигай ползунки слева.<span class="pv-bt2">14:05</span></div></div>
-                </div>
-                <div class="pv-typing"><i></i><i></i><i></i><span>ПЕЧАТАЕТ...</span></div>
-                <div class="pv-hint">ИСТОРИЯ — ТОЛЬКО В ПАМЯТИ. ФАЙЛЫ НЕ СОХРАНЯЮТСЯ.</div>
-                <div class="pv-inputrow">
-                  <span class="pv-ico"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8.5 12.5l6-6a3.2 3.2 0 0 1 4.5 4.5l-8 8a5.3 5.3 0 0 1-7.5-7.5l7.5-7.5"/></svg></span>
-                  <span class="pv-input">СООБЩЕНИЕ</span>
-                  <span class="pv-ico send"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l18-8-7 18-3-8z"/><path d="M11 13l10-10"/></svg></span>
-                </div>
-              </div>
-              <aside class="pv-members">
-                <div class="pv-mhead">УЧАСТНИКИ · 3</div>
-                <div class="pv-mrow2"><i class="sq on"></i>triu</div>
-                <div class="pv-mrow2"><i class="sq on"></i>nexus</div>
-                <div class="pv-mrow2"><i class="sq"></i>vetra</div>
-              </aside>
+            <div class="msglist">
+              <div class="msg sys">ВЫ ВОШЛИ В КОМНАТУ</div>
+              <div class="msg peer">привет! кидай скин<span class="mtime">14:02</span></div>
+              <div class="msg self">держи — градиент, свечения, всё живое<span class="mtime">14:03</span></div>
+              <div class="msg peer">а в тёмной теме как?<span class="mtime">14:04</span></div>
+              <div class="msg self">переключи режим слева и посмотри<span class="mtime">14:05</span></div>
+            </div>
+            <div class="hint">ИСТОРИЯ — ТОЛЬКО В ПАМЯТИ, ПОКА В КОМНАТЕ ЕСТЬ ЛЮДИ. ФАЙЛЫ НЕ СОХРАНЯЮТСЯ.</div>
+            <div class="typing"><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span><span class="small muted">ПЕЧАТАЕТ...</span></div>
+            <div class="inputrow">
+              <button type="button" class="btn-icon" tabindex="-1" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8.5 12.5l6-6a3.2 3.2 0 0 1 4.5 4.5l-8 8a5.3 5.3 0 0 1-7.5-7.5l7.5-7.5"/></svg></button>
+              <textarea class="inp" rows="1" placeholder="СООБЩЕНИЕ" aria-label="Поле сообщения"></textarea>
+              <button type="button" class="btn-icon" tabindex="-1" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 11l18-8-7 18-3-8z"/><path d="M11 13l10-10"/></svg></button>
             </div>
           </div>
 
-          <!-- экран МЕНЮ -->
+          <!-- ЭКРАН: ГЛАВНОЕ МЕНЮ (как #scr-menu в Skyle) -->
           <div class="pv-screen" data-pvs="menu">
-            <div class="pv-topbar">
-              <span class="pv-logo">SKYLE</span>
-              <span class="pv-sp"></span>
-              <span class="pv-bt">ТЕМА: АВТО</span>
-              <span class="pv-bt">ПРОФИЛЬ</span>
+            <div class="topbar">
+              <span class="logo">SKYLE</span>
+              <span class="flex-sp"></span>
+              <button type="button" class="btn-top">СКИН</button>
+              <button type="button" class="btn-top">ТЕМА</button>
+              <button type="button" class="btn-top">ПРОФИЛЬ</button>
             </div>
-            <div class="pv-tabs">
-              <span class="pv-tab on">КОМНАТЫ</span>
-              <span class="pv-tab">ПУБЛИЧНЫЕ</span>
+            <div class="tabs">
+              <button type="button" class="tab on">МОИ КОМНАТЫ</button>
+              <button type="button" class="tab">ПУБЛИЧНЫЕ</button>
+              <button type="button" class="tab">ЛИЧНЫЕ</button>
             </div>
-            <div class="pv-list">
-              <div class="pv-row cur"><div class="pv-rm"><b>АЭРО-КЛУБ</b><i>2 участника · с паролем</i></div><span class="pv-unread">2</span></div>
-              <div class="pv-row"><div class="pv-rm"><b>RETROWAVE</b><i>5 участников</i></div></div>
-              <div class="pv-row"><div class="pv-rm"><b>Терминал</b><i>1 участник</i></div></div>
-              <div class="pv-row"><div class="pv-rm"><b>Пастель-чат</b><i>4 участника</i></div></div>
-            </div>
-            <div class="pv-actions">
-              <span class="pv-btn pri">СОЗДАТЬ КОМНАТУ</span>
-              <span class="pv-btn">ВОЙТИ ПО ID</span>
-            </div>
-          </div>
-
-          <!-- экран ПРОФИЛЬ -->
-          <div class="pv-screen" data-pvs="profile">
-            <div class="pv-topbar">
-              <span class="pv-bt">&lt; НАЗАД</span>
-              <span class="pv-tt"><b>ПРОФИЛЬ</b></span>
-            </div>
-            <div class="pv-pad">
-              <div class="pv-h">НИК</div>
-              <div class="pv-inp">triu</div>
-              <div class="pv-h">ЛИЧНЫЙ ID</div>
-              <div class="pv-bigid">K7M-2XP</div>
-              <div class="pv-mbtns">
-                <span class="pv-btn">КОПИРОВАТЬ ID</span>
-                <span class="pv-btn">СБРОСИТЬ ID</span>
+            <div class="tabbody">
+              <div class="list">
+                <div class="row"><div class="row-main"><div class="row-t">Общаком</div><div class="row-s"><span class="small muted">ВЫ СЕЙЧАС ЗДЕСЬ</span></div></div><span class="sq on"></span></div>
+                <div class="row"><div class="row-main"><div class="row-t">Анонимные крики в пустоту</div><div class="row-s"><span class="small muted">12 УЧАСТНИКОВ</span><span class="small unread">2 НОВЫХ</span></div></div></div>
+                <div class="row"><div class="row-main"><div class="row-t">Секретный штаб</div><div class="row-s"><span class="small muted">ТОЛЬКО ПО ПАРОЛЮ</span></div></div><span class="sq"></span></div>
               </div>
-              <div class="pv-h">ТЕМА</div>
-              <div class="pv-seg"><i class="on">СВЕТЛАЯ</i><i>ТЁМНАЯ</i><i>АВТО</i></div>
-              <div class="pv-h">ЗВУК НОВЫХ СООБЩЕНИЙ</div>
-              <span class="pv-btn solo">ЗВУК: ВКЛ</span>
-              <div class="pv-h">ЗАБЛОКИРОВАННЫЕ</div>
-              <div class="pv-note">Список пуст</div>
+              <div class="menu-actions">
+                <button type="button" class="btn btn-primary">СОЗДАТЬ КОМНАТУ</button>
+                <button type="button" class="btn">ВОЙТИ ПО ID</button>
+              </div>
+              <div class="pad" style="flex:none;padding-top:6px">
+                <div class="note">История существует, пока в комнате есть люди. Личные чаты — сквозное шифрование ECDH.</div>
+              </div>
             </div>
           </div>
 
-          <!-- модалка предпросмотра -->
+          <!-- ЭКРАН: ПРОФИЛЬ (как #scr-profile в Skyle) -->
+          <div class="pv-screen" data-pvs="profile">
+            <div class="topbar">
+              <button type="button" class="btn-top">&lt; НАЗАД</button>
+              <span class="tb-title"><span class="t1">ПРОФИЛЬ</span></span>
+              <span class="flex-sp"></span>
+            </div>
+            <div class="pad">
+              <div class="h">НИК</div>
+              <div class="inline-row"><span class="inp">triu</span><button type="button" class="btn">СОХРАНИТЬ</button></div>
+              <div class="h">ЛИЧНЫЙ ID</div>
+              <div class="bigid">QW7-K2M</div>
+              <button type="button" class="btn wide" tabindex="-1">КОПИРОВАТЬ ID</button>
+              <button type="button" class="btn wide" tabindex="-1">СБРОСИТЬ ID</button>
+              <div class="h">ТЕМА</div>
+              <div class="seg"><span class="seg-btn">СВЕТЛАЯ</span><span class="seg-btn">ТЁМНАЯ</span><span class="seg-btn">АВТО</span><span class="seg-btn on">СВОЙ СКИН</span></div>
+              <div class="h">СКИН</div>
+              <div class="note" id="pv-skin-note">ТЕКУЩИЙ СКИН: —</div>
+              <div class="inline-row"><button type="button" class="btn" tabindex="-1">ИМПОРТ СКИНА (JSON)</button><button type="button" class="btn" tabindex="-1">СБРОСИТЬ СКИН</button></div>
+              <div class="note">Скопируйте свой ID собеседнику: по нему вам будут писать личные сообщения.</div>
+            </div>
+          </div>
+
+          <!-- МОДАЛКА ПОВЕРХ (как confirmBox в Skyle) -->
           <div class="pv-modalwrap" id="pv-modalwrap">
-            <div class="pv-backdrop"></div>
-            <div class="pv-modal">
-              <div class="pv-mtitle">ПРИМЕНИТЬ СКИН?</div>
-              <div class="pv-mtext" id="pv-mtext">Скин изменит оформление Skyle.</div>
-              <div class="pv-mbtns">
-                <span class="pv-btn">ОТМЕНА</span>
-                <span class="pv-btn pri">ПРИМЕНИТЬ</span>
+            <div class="modal">
+              <div class="modal-box">
+                <div class="modal-text" id="pv-mtext">Применить скин «Aero»?</div>
+                <div class="modal-btns">
+                  <button type="button" class="btn" tabindex="-1">ОТМЕНА</button>
+                  <button type="button" class="btn btn-primary" tabindex="-1">ПРИМЕНИТЬ</button>
+                </div>
               </div>
             </div>
           </div>
@@ -534,58 +580,150 @@ input[type=color]::-moz-color-swatch{border:none}
 <script>
 'use strict';
 /* ============================================================
-   SKYLE SKIN MAKER (SSM) — конструктор скинов для мессенджера Skyle.
+   SKYLE SKIN MAKER (SSM) v2 — конструктор скинов для мессенджера Skyle.
    Один файл, без зависимостей. Разделы:
-   1. Константы  2. Утилиты  3. Валидация  4. Состояние
-   5. Пресеты и случайный скин  6. Предпросмотр
+   1. Константы  2. Утилиты  3. Валидатор (копия Skyle)
+   4. Состояние  5. Пресеты и случайный скин  6. Предпросмотр
    7. UI редактора  8. Фон-картинка  9. Экспорт/импорт
+   Совместимость: скины, принимаемые здесь, принимает валидатор
+   window.skyleSkin внутри Skyle (тот же белый список и те же правила).
    ============================================================ */
 
 /* ================= 1. КОНСТАНТЫ ================= */
-// Адрес мессенджера Skyle — на него ведёт «Копировать ссылку».
+// Адрес мессенджера Skyle — на него ведёт «Копировать ссылку»
+// (кнопка «СОЗДАТЬ СВОЙ СКИН» в Skyle открывает …/skyle/SSM — этот файл).
 const SKYLE_URL='https://triuzed.github.io/skyle/';
-const SKIN_VERSION=1;             // версия формата (поле "ssm")
-const MAX_JSON_CHARS=1572864;     // лимит всего JSON: 1,5 МБ
-const MAX_IMG_CHARS=1048576;      // лимит data:-картинки фона: 1 МБ
-const MAX_URL_LEN=10000;          // разумный предел длины ссылки
+const MAX_JSON_CHARS=1500000;     // лимит Skyle: importSkinText отвергает text.length > 1500000
+const MAX_IMG_CHARS=1400000;      // лимит Skyle: data:-строка --bg-image (base64) до ~1 МБ
+const MAX_URL_LEN=10000;          // разумный предел длины ссылки для мессенджеров
 const LS_DRAFT='ssm_draft';       // ключ черновика (префикс ssm_)
 const LS_SIMPLE='ssm_simple';     // флаг «упрощённого режима»
 
-// Белый список цветовых переменных (порядок = порядок в UI и в JSON)
-const COLOR_VARS=['--bg','--fg','--muted','--line','--line-soft','--panel','--panel-2','--inv-bg','--inv-fg','--accent','--accent-fg','--msg-own-bg','--msg-own-fg','--msg-peer-bg','--msg-peer-fg','--topbar-bg','--topbar-fg'];
-// Первые девять — «базовые»: их значения по умолчанию зависят от режима
-const BASE_VARS=COLOR_VARS.slice(0,9);
-// Если переменная не задана явно — берём значение другой переменной
-const DERIVE={'--accent':'--fg','--accent-fg':'--bg','--msg-own-bg':'--fg','--msg-own-fg':'--bg','--msg-peer-bg':'--panel','--msg-peer-fg':'--fg','--topbar-bg':'--inv-bg','--topbar-fg':'--inv-fg'};
-// Classic: штатные значения Skyle для базовых переменных
-const CLASSIC={
-  light:{'--bg':'#ffffff','--fg':'#000000','--muted':'#6e6e6e','--line':'#000000','--line-soft':'#d9d9d9','--panel':'#f2f2f2','--panel-2':'#e4e4e4','--inv-bg':'#000000','--inv-fg':'#ffffff'},
-  dark:{'--bg':'#000000','--fg':'#ffffff','--muted':'#9a9a9a','--line':'#ffffff','--line-soft':'#2b2b2b','--panel':'#141414','--panel-2':'#202020','--inv-bg':'#ffffff','--inv-fg':'#000000'}
+/* >>> НАЧАЛО КОПИИ ВАЛИДАТОРА SKYLE >>>
+   Ниже — перенесённый без изменений белый список и правила проверки
+   из <script> в начале index.html Skyle (модуль window.skyleSkin).
+   МЕНЯТЬ ТОЛЬКО ВМЕСТЕ С Skyle: что принимает Skyle — принимает SSM. */
+
+// белый список переменных и их типов (как VARS в Skyle)
+const VARS={
+  '--bg':'color','--fg':'color','--muted':'color','--line':'color','--line-soft':'color',
+  '--panel':'color','--panel-2':'color','--inv-bg':'color','--inv-fg':'color',
+  '--accent':'color','--accent-fg':'color',
+  '--msg-own-bg':'color','--msg-own-fg':'color','--msg-peer-bg':'color','--msg-peer-fg':'color',
+  '--topbar-bg':'color','--topbar-fg':'color',
+  '--radius':'len:0:64','--radius-lg':'len:0:64',
+  '--font-size':'len:8:28','--border-width':'len:0:6','--blur':'len:0:32',
+  '--font':'font',
+  '--shadow':'shadow','--shadow-strong':'shadow','--glow':'shadow',
+  '--panel-alpha':'alpha',
+  '--bg-image':'bgimage','--bg-size':'bgsize','--bg-attachment':'bgattach'
 };
-// Безопасные шрифты: только системные стеки
-const MONO_STACK='ui-monospace,"SF Mono",Consolas,"Liberation Mono",monospace';
-const SAFE_FONTS=[
-  {l:'Моно (как в Skyle)',v:MONO_STACK},
-  {l:'Системная',v:'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif'},
-  {l:'Arial',v:'Arial,"Helvetica Neue",sans-serif'},
-  {l:'Verdana',v:'Verdana,Geneva,sans-serif'},
-  {l:'Tahoma',v:'Tahoma,Geneva,sans-serif'},
-  {l:'Trebuchet MS',v:'"Trebuchet MS",Tahoma,sans-serif'},
-  {l:'Georgia',v:'Georgia,"Times New Roman",serif'},
-  {l:'Times New Roman',v:'"Times New Roman",Times,serif'},
-  {l:'Courier New',v:'"Courier New",Courier,monospace'},
-  {l:'Palatino',v:'"Palatino Linotype","Book Antiqua",Palatino,serif'},
-  {l:'Comic Sans MS',v:'"Comic Sans MS",cursive'}
-];
-// Значения по умолчанию (не зависят от режима)
-const DEFAULT_VARS={'--radius':'0px','--radius-lg':'0px','--border-width':'1px','--font':MONO_STACK,'--font-size':'14px','--shadow':'none','--shadow-strong':'none','--glow':'none','--blur':'0px','--panel-alpha':'1','--bg-image':'none','--bg-size':'cover','--bg-attachment':'fixed'};
-// Диапазоны длин (в px)
-const RANGES={'--radius':[0,64],'--radius-lg':[0,64],'--border-width':[0,8],'--font-size':[10,24],'--blur':[0,40]};
-// Полный белый список переменных скина (30 штук)
-const ALL_VARS=[...COLOR_VARS,'--radius','--radius-lg','--border-width','--font','--font-size','--shadow','--shadow-strong','--glow','--blur','--panel-alpha','--bg-image','--bg-size','--bg-attachment'];
-// Пары для проверки контраста WCAG
-const CONTRAST_PAIRS=[['--fg','--bg'],['--msg-own-fg','--msg-own-bg'],['--msg-peer-fg','--msg-peer-bg'],['--topbar-fg','--topbar-bg']];
-// Метки цветовых переменных: [ключ, подпись, подзаголовок в UI]
+// безопасные системные шрифтовые стеки: в JSON пишется КОРОТКОЕ ИМЯ из списка
+const FONTS={
+  'mono':'ui-monospace,"SF Mono",Consolas,"Liberation Mono",monospace',
+  'system':'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif',
+  'sans':'Arial,Helvetica,sans-serif',
+  'serif':'Georgia,"Times New Roman",Times,serif',
+  'courier':'"Courier New",Courier,monospace',
+  'rounded':'"Trebuchet MS",Tahoma,sans-serif'
+};
+// всё, что может вынести значение за пределы безопасных типов
+function skBad(v){
+  return /[\\;{}<>@]|\/\*|\*\//.test(v)||/expression|javascript:|behavior|binding|-moz-binding/i.test(v);
+}
+function skIsColor(v){
+  if(/^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v))return true;
+  const m=v.match(/^(rgba?|hsla?)\(([^()]*)\)$/i);
+  if(!m)return false;
+  const p=m[2].split(/[,\/\s]+/).filter(Boolean);
+  return p.length>=3&&p.length<=4&&p.every(x=>/^\d*\.?\d+%?(deg|turn)?$/i.test(x));
+}
+function skIsLen(v,min,max){
+  const m=v.match(/^(\d*\.?\d+)(px|rem|em)$/i);
+  if(!m)return v==='0';
+  const n=parseFloat(m[1])*(m[2].toLowerCase()==='px'?1:16);
+  return n>=min&&n<=max;
+}
+function skShadowSafe(v){
+  if(v==='none')return true;
+  if(skBad(v)||/url\(/i.test(v))return false;
+  const t=v.replace(/(rgba?|hsla?)\([^()]*\)/gi,' C ')
+    .replace(/#[0-9a-f]{3,8}/gi,' C ')
+    .replace(/\b(inset|transparent|currentcolor)\b/gi,' K ')
+    .replace(/-?\d*\.?\d+(px|rem|em)?/gi,' N ');
+  return /^[\s,CKN]+$/i.test(t);
+}
+function skGradSafe(v){
+  const t=v.replace(/(rgba?|hsla?)\([^()]*\)/gi,' C ')
+    .replace(/#[0-9a-f]{3,8}/gi,' C ')
+    .replace(/\b(to|top|bottom|left|right|circle|ellipse|closest-side|closest-corner|farthest-side|farthest-corner|at|transparent|currentcolor)\b/gi,' K ')
+    .replace(/-?[\d.]+(deg|grad|rad|turn|%|px|rem|em)?/gi,' N ');
+  return /^[\s,CKN()]+$/i.test(t);
+}
+function skIsBgImage(v){
+  if(v==='none')return true;
+  if(/^(linear|radial)-gradient\(/i.test(v)){
+    if(!/\)\s*$/.test(v))return false;
+    return !skBad(v)&&skGradSafe(v.replace(/^(linear|radial)-gradient\(/i,'('));
+  }
+  // фон-картинка: только data:image/png|jpeg|webp;base64 до ~1 МБ, никаких внешних URL
+  const m=v.match(/^url\(\s*(['"]?)(data:image\/(?:png|jpe?g|webp);base64,[a-z0-9+\/=]+)\1\s*\)$/i);
+  const raw=m?m[2]:(/^data:image\/(?:png|jpe?g|webp);base64,[a-z0-9+\/=]+$/i.test(v)?v:null);
+  if(!raw)return false;
+  return raw.length<=MAX_IMG_CHARS;
+}
+// возвращает каноничное значение (как его сохранит Skyle) либо null — запрет
+function skCheckVal(k,val){
+  if(val==null)return null;
+  const v=String(val).trim();
+  if(!v)return null;
+  const t=VARS[k];
+  if(!t)return null;
+  if(t==='bgimage'){
+    if(!skIsBgImage(v))return null;
+    return /^data:/i.test(v)?'url('+v+')':v; // чистый data-URI Skyle оборачивает в url()
+  }
+  if(v.length>5000||skBad(v))return null;
+  if(t==='color')return skIsColor(v)?v:null;
+  if(t.indexOf('len:')===0){const p=t.split(':');return skIsLen(v,+p[1],+p[2])?v:null;}
+  if(t==='font'){const f=FONTS[v.toLowerCase()];return f||null;}
+  if(t==='shadow')return skShadowSafe(v)?v:null;
+  if(t==='alpha'){const n=Number(v);return isFinite(n)&&n>=0&&n<=1?String(n):null;}
+  if(t==='bgsize')return /^(auto|contain|cover)$/.test(v)||/^\d*\.?\d+(px|%|em|rem|vw|vh)?(\s+\d*\.?\d+(px|%|em|rem|vw|vh)?)?$/.test(v)?v:null;
+  if(t==='bgattach')return /^(scroll|fixed|local)$/i.test(v)?v.toLowerCase():null;
+  return null;
+}
+// единая проверка скина — как validate() в Skyle: один плохой var = отказ всего скина
+function skValidate(skin){
+  if(!skin||typeof skin!=='object'||Array.isArray(skin))return{ok:false,error:'ожидался JSON-объект'};
+  if(skin.ssm!==1)return{ok:false,error:'не тот формат: нужно поле "ssm":1'};
+  if(typeof skin.name!=='string'||!skin.name.trim()||skin.name.length>40)return{ok:false,error:'нет имени скина или оно длиннее 40 символов'};
+  if(skin.author!=null&&(typeof skin.author!=='string'||skin.author.length>40))return{ok:false,error:'поле "author" длиннее 40 символов'};
+  if(skin.mode!=='light'&&skin.mode!=='dark')return{ok:false,error:'поле "mode" должно быть light или dark'};
+  if(!skin.vars||typeof skin.vars!=='object'||Array.isArray(skin.vars))return{ok:false,error:'нет секции "vars"'};
+  const out={};let n=0;
+  for(const k in skin.vars){
+    if(!Object.prototype.hasOwnProperty.call(skin.vars,k))continue;
+    if(!VARS[k])continue; // посторонние ключи Skyle молча игнорирует — мы тоже
+    const val=skCheckVal(k,skin.vars[k]);
+    if(val==null)return{ok:false,error:'переменная '+k+' — недопустимое значение'};
+    out[k]=val;n++;
+  }
+  if(!n)return{ok:false,error:'в "vars" нет ни одной поддерживаемой переменной'};
+  const res={ssm:1,name:skin.name.trim().slice(0,40),mode:skin.mode,vars:out};
+  if(typeof skin.author==='string'&&skin.author.trim())res.author=skin.author.trim().slice(0,40);
+  return{ok:true,skin:res};
+}
+/* <<< КОНЕЦ КОПИИ ВАЛИДАТОРА SKYLE <<< */
+
+// порядок переменных для UI/JSON: 17 цветов + 13 прочих
+const COLOR_VARS=['--bg','--fg','--muted','--line','--line-soft','--panel','--panel-2','--inv-bg','--inv-fg','--accent','--accent-fg','--msg-own-bg','--msg-own-fg','--msg-peer-bg','--msg-peer-fg','--topbar-bg','--topbar-fg'];
+const ALL_VARS=[...COLOR_VARS,'--radius','--radius-lg','--border-width','--font-size','--font','--shadow','--shadow-strong','--glow','--blur','--panel-alpha','--bg-image','--bg-size','--bg-attachment'];
+// диапазоны длин (в px) — как в типах len: у Skyle
+const RANGES={'--radius':[0,64],'--radius-lg':[0,64],'--border-width':[0,6],'--font-size':[8,28],'--blur':[0,32]};
+// пары для проверки контраста WCAG (последняя — кнопки/вкладки на акценте)
+const CONTRAST_PAIRS=[['--fg','--bg'],['--msg-own-fg','--msg-own-bg'],['--msg-peer-fg','--msg-peer-bg'],['--topbar-fg','--topbar-bg'],['--accent-fg','--accent']];
+// метки цветовых переменных: [ключ, подпись, подзаголовок в UI]
 const COLOR_META=[
   ['--bg','фон страницы','БАЗОВЫЕ'],
   ['--fg','основной текст',''],
@@ -596,7 +734,7 @@ const COLOR_META=[
   ['--panel-2','панели 2',''],
   ['--inv-bg','инверсия: фон',''],
   ['--inv-fg','инверсия: текст',''],
-  ['--accent','акцент','АКЦЕНТ'],
+  ['--accent','акцент','АКЦЕНТ И КНОПКИ'],
   ['--accent-fg','текст на акценте',''],
   ['--msg-own-bg','свои: фон','СООБЩЕНИЯ'],
   ['--msg-own-fg','свои: текст',''],
@@ -606,6 +744,15 @@ const COLOR_META=[
   ['--topbar-fg','верхняя панель: текст','']
 ];
 
+/* База Skyle — то, что стоит под скином (из :root и [data-theme="dark"]).
+   Если переменная не задана в скине, Skyle использует именно эти значения:
+   свои сообщения — прозрачные с акцентной чертой слева, топбар — инверсия,
+   акцент = основной текст. Предпросмотр и проверка контраста считают так же. */
+const BASE={
+  light:{'--bg':'#ffffff','--fg':'#000000','--muted':'#6e6e6e','--line':'#000000','--line-soft':'#d9d9d9','--panel':'#f2f2f2','--panel-2':'#e4e4e4','--inv-bg':'#000000','--inv-fg':'#ffffff','--accent':'#000000','--accent-fg':'#ffffff','--msg-own-bg':'transparent','--msg-own-fg':'#000000','--msg-peer-bg':'transparent','--msg-peer-fg':'#000000','--topbar-bg':'#000000','--topbar-fg':'#ffffff','--radius':'0','--radius-lg':'0','--border-width':'1px','--font-size':'14px','--font':'mono','--shadow':'none','--shadow-strong':'none','--glow':'none','--blur':'0px','--panel-alpha':'1','--bg-image':'none','--bg-size':'auto','--bg-attachment':'scroll'},
+  dark:{'--bg':'#000000','--fg':'#ffffff','--muted':'#9a9a9a','--line':'#ffffff','--line-soft':'#2b2b2b','--panel':'#141414','--panel-2':'#202020','--inv-bg':'#ffffff','--inv-fg':'#000000','--accent':'#ffffff','--accent-fg':'#000000','--msg-own-bg':'transparent','--msg-own-fg':'#ffffff','--msg-peer-bg':'transparent','--msg-peer-fg':'#ffffff','--topbar-bg':'#ffffff','--topbar-fg':'#000000','--radius':'0','--radius-lg':'0','--border-width':'1px','--font-size':'14px','--font':'mono','--shadow':'none','--shadow-strong':'none','--glow':'none','--blur':'0px','--panel-alpha':'1','--bg-image':'none','--bg-size':'auto','--bg-attachment':'scroll'}
+};
+
 /* ================= 2. УТИЛИТЫ ================= */
 const byId=id=>document.getElementById(id);
 function fmtKB(n){n=Math.max(0,Math.round(n));if(n<1024)return n+' Б';if(n<1048576)return (n/1024).toFixed(1)+' КБ';return (n/1048576).toFixed(2)+' МБ';}
@@ -614,7 +761,7 @@ function clamp(v,min,max){return Math.min(max,Math.max(min,v));}
 function toast(text,ms){
   const d=document.createElement('div');d.className='s-toast';d.textContent=text;
   byId('s-toasts').append(d);
-  setTimeout(()=>{d.style.opacity='0';d.style.transform='translateY(-6px)';setTimeout(()=>d.remove(),220);},ms||3200);
+  setTimeout(()=>{d.style.opacity='0';d.style.transform='translateY(-6px)';setTimeout(()=>d.remove(),220);},ms||3600);
 }
 
 /* Модальное окно редактора: возвращает значение нажатой кнопки */
@@ -663,7 +810,7 @@ function splitTop(s,sepRe){
   return out;
 }
 
-/* ---------- Разбор цветов: #hex, rgb(), rgba(), hsl(), hsla() ---------- */
+/* ---------- Разбор цветов для редактора/контраста: #hex, rgb(), rgba(), hsl(), hsla() ---------- */
 function parseColor(s){
   if(typeof s!=='string')return null;
   const t=s.trim().toLowerCase();
@@ -764,7 +911,7 @@ function parseLen(s){
   if(typeof s!=='string')return null;
   const t=s.trim();
   if(t==='0')return{px:0,raw:t};
-  const m=t.match(/^(-?(?:\d+\.?\d*|\.\d+))(px|rem|em)$/i);
+  const m=t.match(/^(\d*\.?\d+)(px|rem|em)$/i);
   if(!m)return null;
   const v=parseFloat(m[1]),u=m[2].toLowerCase();
   if(!isFinite(v))return null;
@@ -790,189 +937,27 @@ function composite(top,under){
   };
 }
 
-/* ================= 3. ВАЛИДАЦИЯ ================= */
-/* Запрещённые подстроки во всех значениях (кроме data:-картинки --bg-image,
-   которая проверяется отдельно и до этой функции) */
-function forbiddenIn(v){
-  if(/url\s*\(/i.test(v))return 'url() — разрешён только для data:image внутри --bg-image';
-  if(/@import/i.test(v))return '@import';
-  if(/expression/i.test(v))return 'expression()';
-  if(/javascript:/i.test(v))return 'javascript:';
-  if(/[{}]/.test(v))return 'фигурные скобки';
-  if(/;/.test(v))return 'точка с запятой';
-  if(/\/\*|\*\//.test(v))return 'комментарии';
-  if(/<\/?[a-z]/i.test(v))return 'HTML-теги';
-  return null;
-}
-
-/* box-shadow: список теней, каждая = inset? + 2–4 длины + цвет? */
-function validShadow(v){
-  const groups=splitTop(v,/,/).map(g=>g.trim()).filter(g=>g!=='');
-  if(!groups.length)return false;
-  return groups.every(g=>{
-    const toks=splitTop(g,/\s+/).map(t=>t.trim()).filter(t=>t!=='');
-    if(toks.length<2||toks.length>6)return false;
-    let inset=false,color=false,lengths=0;
-    for(const t of toks){
-      if(t==='inset'){if(inset)return false;inset=true;continue;}
-      if(parseColor(t)){if(color)return false;color=true;continue;}
-      if(parseLen(t)){lengths++;continue;}
-      return false;
-    }
-    return lengths>=2&&lengths<=4;
-  });
-}
-
-/* Градиенты: только linear/radial-gradient из цветов и позиций */
-const GRAD_KW=/^(to|top|bottom|left|right|circle|ellipse|at|closest-side|closest-corner|farthest-side|farthest-corner)$/i;
-function validGradient(v){
-  const m=/^(linear|radial)-gradient\((.*)\)$/i.exec(v);
-  if(!m)return false;
-  const parts=splitTop(m[2],/,/).map(p=>p.trim()).filter(p=>p!=='');
-  if(parts.length<2)return false;
-  return parts.every(p=>{
-    const toks=splitTop(p,/\s+/).map(t=>t.trim()).filter(t=>t!=='');
-    if(!toks.length)return false;
-    return toks.every(t=>{
-      if(parseColor(t))return true;
-      if(GRAD_KW.test(t))return true;
-      if(/^-?[\d.]+(deg|grad|rad|turn)?$/i.test(t))return true;
-      if(/^[\d.]+(px|%|em|rem)$/i.test(t))return true;
-      return false;
-    });
-  });
-}
-
-/* Фон: none | градиент | data:image/png|jpeg|webp;base64 (до 1 МБ) */
-const DATA_IMG_RE_URL=/^url\(\s*(['"]?)(data:image\/(?:png|jpeg|webp);base64,([A-Za-z0-9+/=]+))\1\s*\)$/i;
-const DATA_IMG_RE_BARE=/^(data:image\/(?:png|jpeg|webp);base64,([A-Za-z0-9+/=]+))$/i;
-function validateBgImage(val){
-  let inner=null;
-  const mu=val.match(DATA_IMG_RE_URL);
-  if(mu)inner=mu[2];
-  else{
-    const mb=val.match(DATA_IMG_RE_BARE);
-    if(mb)inner=mb[1];
-  }
-  if(inner!=null){
-    if(inner.length>MAX_IMG_CHARS)return{ok:false,error:'Картинка --bg-image весит '+fmtKB(inner.length)+' — лимит 1 МБ. Уменьшите изображение.'};
-    return{ok:true,value:'url("'+inner+'")'}; // каноничная форма
-  }
-  const bad=forbiddenIn(val);
-  if(bad)return{ok:false,error:'В значении --bg-image запрещено: '+bad+'.'};
-  if(val==='none')return{ok:true,value:'none'};
-  if(/^(linear|radial)-gradient\(/i.test(val)){
-    if(!validGradient(val))return{ok:false,error:'Градиент в --bg-image не разобран: разрешены только цвета и позиции. Пример: linear-gradient(160deg, #d9ecff, #ffffff).'};
-    return{ok:true,value:val};
-  }
-  return{ok:false,error:'--bg-image: жду none, linear-gradient(...), radial-gradient(...) или data:image/png|jpeg|webp;base64 (до 1 МБ).'};
-}
-
-/* Валидация одной переменной по её типу */
-function validateValue(k,v){
-  if(typeof v!=='string'||v.trim()==='')return{ok:false,error:k+': значение должно быть непустой строкой.'};
-  const val=v.trim();
-  if(k==='--bg-image')return validateBgImage(val);
-  const bad=forbiddenIn(val);
-  if(bad)return{ok:false,error:'В значении '+k+' запрещено: '+bad+'.'};
-  if(COLOR_VARS.includes(k)){
-    if(!parseColor(val))return{ok:false,error:k+': не похоже на цвет. Форматы: #fff, #ffffff, rgb(0,0,0), rgba(0,0,0,.5), hsl(210,50%,50%).'};
-    return{ok:true,value:val};
-  }
-  if(RANGES[k]){
-    const L=parseLen(val);
-    if(!L)return{ok:false,error:k+': ожидаю число с px, rem или em — например "8px".'};
-    const[min,max]=RANGES[k];
-    if(L.px<min||L.px>max)return{ok:false,error:'Значение '+k+' вне диапазона '+min+'–'+max+'px (сейчас '+(Math.round(L.px*10)/10)+'px).'};
-    return{ok:true,value:val};
-  }
-  if(k==='--panel-alpha'){
-    const n=Number(val);
-    if(!isFinite(n)||n<0||n>1)return{ok:false,error:'Значение --panel-alpha — число от 0 до 1 (например 0.6).'};
-    return{ok:true,value:String(Math.round(n*100)/100)};
-  }
-  if(k==='--font'){
-    if(!SAFE_FONTS.some(f=>f.v===val))return{ok:false,error:'--font: такой шрифт не входит в безопасный список SSM. Возьмите значение из выпадающего списка.'};
-    return{ok:true,value:val};
-  }
-  if(k==='--shadow'||k==='--shadow-strong'||k==='--glow'){
-    if(val==='none')return{ok:true,value:'none'};
-    if(!validShadow(val))return{ok:false,error:k+': не похоже на box-shadow. Пример: 0 4px 16px rgba(0,0,0,.2). Разрешены числа с px/rem/em и цвета.'};
-    return{ok:true,value:val};
-  }
-  if(k==='--bg-size'){
-    if(/^(cover|contain|auto)$/.test(val))return{ok:true,value:val};
-    const parts=val.split(/\s+/).filter(Boolean);
-    if(parts.length>=1&&parts.length<=2&&parts.every(p=>/^(\d+\.?\d*|\.\d+)(px|%|em|rem|auto)?$/.test(p)))return{ok:true,value:val};
-    return{ok:false,error:'--bg-size: жду cover, contain, auto или размеры — например "100% auto".'};
-  }
-  if(k==='--bg-attachment'){
-    if(/^(fixed|scroll|local)$/.test(val))return{ok:true,value:val};
-    return{ok:false,error:'--bg-attachment: жду fixed, scroll или local.'};
-  }
-  return{ok:false,error:k+': неизвестная переменная.'};
-}
-
-/* Фильтрация объекта vars: только белый список, только корректные значения */
-function sanitizeVars(varsIn){
-  const vars={},warnings=[];
-  if(varsIn==null)return{vars,warnings};
-  if(typeof varsIn!=='object'||Array.isArray(varsIn)){
-    warnings.push('Секция "vars" повреждена — использую значения по умолчанию.');
-    return{vars,warnings};
-  }
-  let unknown=0;
-  for(const k of Object.keys(varsIn)){
-    if(!ALL_VARS.includes(k)){unknown++;continue;}
-    const r=validateValue(k,varsIn[k]);
-    if(r.ok)vars[k]=r.value;
-    else warnings.push(k+': '+r.error);
-  }
-  if(unknown)warnings.push('Проигнорировано неизвестных переменных: '+unknown+' — их нет в формате скина.');
-  return{vars,warnings};
-}
-
-/* Единая проверка скина: и для импорта, и для экспорта */
-function validateSkin(raw){
-  const errors=[],warnings=[];
-  if(typeof raw!=='string'||!raw.trim())return{ok:false,errors:['Пустой ввод: передайте текст JSON.'],warnings};
-  if(raw.length>MAX_JSON_CHARS)return{ok:false,errors:['Данные слишком большие: '+fmtKB(raw.length)+' — лимит 1,5 МБ.'],warnings};
-  let obj;
-  try{obj=JSON.parse(raw);}
-  catch(e){return{ok:false,errors:['Это не корректный JSON: проверьте кавычки, запятые и скобки.'],warnings};}
-  if(!obj||typeof obj!=='object'||Array.isArray(obj))return{ok:false,errors:['Скин должен быть JSON-объектом вида {"ssm":1,"name":"...","vars":{...}}.'],warnings};
-  if(obj.ssm!==SKIN_VERSION)return{ok:false,errors:['Поле "ssm" должно быть равно 1 (версия формата), а сейчас: '+(obj.ssm===undefined?'(нет)':JSON.stringify(obj.ssm))+'.'],warnings};
-  const skin={ssm:1,name:'',author:'',mode:'light',vars:{}};
-  if(typeof obj.name==='string')skin.name=obj.name.trim().slice(0,30);
-  if(typeof obj.author==='string')skin.author=obj.author.trim().slice(0,30);
-  if(obj.mode==='light'||obj.mode==='dark')skin.mode=obj.mode;
-  else warnings.push('Поле "mode" отсутствует или неверное — принят режим "light".');
-  const sv=sanitizeVars(obj.vars);
-  skin.vars=sv.vars;
-  warnings.push(...sv.warnings);
-  return{ok:errors.length===0,skin,errors,warnings};
-}
-
 /* ================= 4. СОСТОЯНИЕ ================= */
 const state={
-  name:'Classic',author:'',
+  name:'',       // название скина (в Skyle: 1–40 символов)
+  author:'',     // автор (необязательно, до 40)
   mode:(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light',
-  vars:{},      // только явно заданные переменные
-  simple:false  // упрощённый режим предпросмотра
+  vars:{},       // ТОЛЬКО явно заданные пользователем переменные (короткие имена шрифтов)
+  simple:false   // упрощённый режим предпросмотра
 };
 
-/* Эффективное значение переменной: явное -> вывод -> дефолт -> Classic режима */
-function eff(name,vars,mode){
-  if(vars&&vars[name]!=null)return vars[name];
-  if(Object.prototype.hasOwnProperty.call(DERIVE,name))return eff(DERIVE[name],vars,mode);
-  if(Object.prototype.hasOwnProperty.call(DEFAULT_VARS,name))return DEFAULT_VARS[name];
-  return CLASSIC[mode][name]||'';
+/* Эффективное значение: явное -> база Skyle для текущего режима.
+   Никакого «выведения» внутри скина нет — недостающее Skyle добирает
+   из собственных :root/[data-theme] (см. CSS предпросмотра). */
+function eff(name){
+  if(state.vars[name]!=null)return state.vars[name];
+  return BASE[state.mode][name]||'';
 }
 
 let saveTimer=null,storageWarned=false;
 function scheduleSave(){
   clearTimeout(saveTimer);
-  saveTimer=setTimeout(()=>{
+  setTimeout(()=>{
     try{
       localStorage.setItem(LS_DRAFT,JSON.stringify({name:state.name,author:state.author,mode:state.mode,vars:state.vars}));
     }catch(e){
@@ -989,129 +974,141 @@ function setVar(k,val){
   commit();
 }
 
-/* Смена режима: нетронутые базовые цвета Classic перекрашиваются, кастом остаются */
+/* Смена режима: база перекрашивается, явные переменные остаются */
 function setMode(m){
   if(state.mode===m)return;
-  const prev=CLASSIC[state.mode];
-  for(const k of BASE_VARS)if(state.vars[k]===prev[k])delete state.vars[k];
   state.mode=m;
   commit();
 }
 
-function setVal(inp,v){if(document.activeElement!==inp)inp.value=v;}
+function setVal(inp,v){if(inp&&document.activeElement!==inp)inp.value=v;}
 
 /* ================= 5. ПРЕСЕТЫ И СЛУЧАЙНЫЙ СКИН ================= */
+/* Пресеты НЕ задают --font: текущая версия Skyle хранит скин с уже
+   развёрнутым стеком шрифта и после перезапуска страницы может не
+   применить такой скин целиком (валидатор ждёт короткое имя).
+   Шрифт можно выбрать вручную — см. подсказку в разделе «ТЕКСТ». */
 const PRESETS=[
-  {id:'classic',name:'Classic',sub:'штатный вид Skyle',mode:null,vars:{}},
+  {id:'classic',name:'Classic',sub:'штатный вид',mode:null,varsFn:m=>(m==='dark'?{
+    '--bg':'#000000','--fg':'#ffffff','--muted':'#9a9a9a','--line':'#ffffff','--line-soft':'#2b2b2b',
+    '--panel':'#141414','--panel-2':'#202020','--inv-bg':'#ffffff','--inv-fg':'#000000',
+    '--accent':'#ffffff','--accent-fg':'#000000','--topbar-bg':'#ffffff','--topbar-fg':'#000000',
+    '--radius':'0','--radius-lg':'0','--border-width':'1px'
+  }:{
+    '--bg':'#ffffff','--fg':'#000000','--muted':'#6e6e6e','--line':'#000000','--line-soft':'#d9d9d9',
+    '--panel':'#f2f2f2','--panel-2':'#e4e4e4','--inv-bg':'#000000','--inv-fg':'#ffffff',
+    '--accent':'#000000','--accent-fg':'#ffffff','--topbar-bg':'#000000','--topbar-fg':'#ffffff',
+    '--radius':'0','--radius-lg':'0','--border-width':'1px'
+  })},
   {id:'aero',name:'Aero',sub:'светлое стекло',mode:'light',vars:{
-    '--bg':'#d9ecff','--fg':'#0b3866','--muted':'#3d6b99',
-    '--line':'rgba(70,120,170,.55)','--line-soft':'rgba(255,255,255,.7)',
-    '--panel':'rgba(255,255,255,.55)','--panel-2':'rgba(215,235,252,.6)',
-    '--inv-bg':'rgba(255,255,255,.55)','--inv-fg':'#0b3866',
-    '--accent':'#1c6fd1','--accent-fg':'#ffffff',
-    '--msg-own-bg':'rgba(20,90,190,.85)','--msg-own-fg':'#ffffff',
-    '--msg-peer-bg':'rgba(255,255,255,.72)','--msg-peer-fg':'#0b3866',
-    '--topbar-bg':'rgba(255,255,255,.55)','--topbar-fg':'#0b3866',
-    '--radius':'14px','--radius-lg':'18px','--border-width':'1px',
-    '--font':'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif','--font-size':'14px',
-    '--shadow':'0 4px 14px rgba(30,80,140,.16)','--shadow-strong':'0 10px 30px rgba(30,80,140,.25)',
-    '--glow':'none','--blur':'14px','--panel-alpha':'1',
-    '--bg-image':'linear-gradient(160deg, #b9dfff 0%, #e4f2ff 48%, #cfe9ff 100%)',
-    '--bg-size':'cover','--bg-attachment':'fixed'
+    '--bg':'#dceafc',
+    '--bg-image':'linear-gradient(180deg,#f2f8ff 0%,#d8e9ff 45%,#b9d7fb 100%)',
+    '--bg-size':'cover','--bg-attachment':'fixed',
+    '--fg':'#10304f','--muted':'#4a6a8a',
+    '--line':'rgba(16,48,79,.35)','--line-soft':'rgba(16,48,79,.16)',
+    '--panel':'rgba(255,255,255,.62)','--panel-2':'rgba(255,255,255,.42)',
+    '--inv-bg':'#0f3050','--inv-fg':'#f0f7ff',
+    '--accent':'#1f6fd6','--accent-fg':'#ffffff',
+    '--msg-own-bg':'rgba(31,111,214,.16)','--msg-own-fg':'#10304f',
+    '--msg-peer-bg':'rgba(255,255,255,.66)','--msg-peer-fg':'#10304f',
+    '--topbar-bg':'rgba(255,255,255,.55)','--topbar-fg':'#10304f',
+    '--radius':'12px','--radius-lg':'16px','--border-width':'1px',
+    '--shadow':'0 2px 10px rgba(31,111,214,.18)','--shadow-strong':'0 8px 30px rgba(16,48,79,.25)',
+    '--glow':'0 1px 6px rgba(31,111,214,.35)','--blur':'10px','--panel-alpha':'0.7'
   }},
   {id:'retrowave',name:'Retrowave',sub:'неон 80-х',mode:'dark',vars:{
-    '--bg':'#16002b','--fg':'#f2e9ff','--muted':'#9a7fb8',
-    '--line':'rgba(255,47,179,.5)','--line-soft':'rgba(255,47,179,.22)',
-    '--panel':'rgba(40,8,60,.55)','--panel-2':'rgba(70,20,100,.6)',
-    '--inv-bg':'#ff2fb3','--inv-fg':'#1a0033',
-    '--accent':'#ff2fb3','--accent-fg':'#1a0033',
-    '--msg-own-bg':'rgba(255,47,179,.28)','--msg-own-fg':'#ffd9f0',
-    '--msg-peer-bg':'rgba(0,245,212,.16)','--msg-peer-fg':'#7dfce9',
-    '--topbar-bg':'rgba(22,0,43,.85)','--topbar-fg':'#ff2fb3',
+    '--bg':'#14062b',
+    '--bg-image':'linear-gradient(180deg,#1a0533 0%,#3b0f5c 55%,#7a1b6b 85%,#b0236d 100%)',
+    '--bg-size':'cover','--bg-attachment':'fixed',
+    '--fg':'#ffe9fb','--muted':'#c393d9',
+    '--line':'#ff2e88','--line-soft':'rgba(255,46,136,.35)',
+    '--panel':'#20103f','--panel-2':'#2b1550',
+    '--inv-bg':'#ffe9fb','--inv-fg':'#1a0533',
+    '--accent':'#ff2e88','--accent-fg':'#1a0533',
+    '--msg-own-bg':'rgba(255,46,136,.18)','--msg-own-fg':'#ffe9fb',
+    '--msg-peer-bg':'rgba(32,16,63,.85)','--msg-peer-fg':'#ffe9fb',
+    '--topbar-bg':'rgba(20,6,43,.85)','--topbar-fg':'#ff74b3',
     '--radius':'4px','--radius-lg':'6px','--border-width':'1px',
-    '--font':MONO_STACK,'--font-size':'14px',
-    '--shadow':'0 0 14px rgba(255,47,179,.3)','--shadow-strong':'0 0 28px rgba(255,47,179,.45)',
-    '--glow':'0 0 8px rgba(0,245,212,.75)','--blur':'0px','--panel-alpha':'1',
-    '--bg-image':'linear-gradient(180deg, #16002b 0%, #3d0a5c 45%, #a12568 78%, #ff8a5c 100%)',
-    '--bg-size':'cover','--bg-attachment':'fixed'
+    '--shadow':'0 0 14px rgba(255,46,136,.3)','--shadow-strong':'0 0 26px rgba(255,46,136,.45)',
+    '--glow':'0 0 10px rgba(255,46,136,.6)','--blur':'8px','--panel-alpha':'0.8'
   }},
   {id:'win98',name:'Windows 98',sub:'ретро-бевели',mode:'light',vars:{
     '--bg':'#c0c0c0','--fg':'#000000','--muted':'#5d5d5d',
-    '--line':'#000000','--line-soft':'#828282',
-    '--panel':'#dfdfdf','--panel-2':'#c0c0c0',
+    '--line':'#000000','--line-soft':'#808080',
+    '--panel':'#c0c0c0','--panel-2':'#dfdfdf',
     '--inv-bg':'#000080','--inv-fg':'#ffffff',
     '--accent':'#000080','--accent-fg':'#ffffff',
-    '--msg-own-bg':'#e8e8e8','--msg-own-fg':'#000000',
-    '--msg-peer-bg':'#d4d4d4','--msg-peer-fg':'#000000',
+    '--msg-own-bg':'#d6d2b8','--msg-own-fg':'#000000',
+    '--msg-peer-bg':'#dfdfdf','--msg-peer-fg':'#000000',
     '--topbar-bg':'#000080','--topbar-fg':'#ffffff',
-    '--radius':'0px','--radius-lg':'0px','--border-width':'1px',
-    '--font':'Tahoma,Geneva,sans-serif','--font-size':'13px',
-    '--shadow':'2px 2px 0 rgba(0,0,0,.4)','--shadow-strong':'3px 3px 0 rgba(0,0,0,.5)',
-    '--glow':'none','--blur':'0px','--panel-alpha':'1',
-    '--bg-image':'none','--bg-size':'cover','--bg-attachment':'fixed'
+    '--radius':'0','--radius-lg':'0','--border-width':'1px',
+    '--shadow':'2px 2px 0 rgba(0,0,0,.35)','--shadow-strong':'4px 4px 0 rgba(0,0,0,.4)'
   }},
   {id:'y2k',name:'Y2K',sub:'хром и глянец',mode:'light',vars:{
-    '--bg':'#eef1ff','--fg':'#1c1c3a','--muted':'#6a6a9e',
-    '--line':'#b4bce0','--line-soft':'#d9def5',
-    '--panel':'#ffffff','--panel-2':'#e2e7fb',
-    '--inv-bg':'#3a48d8','--inv-fg':'#ffffff',
-    '--accent':'#7a2ff0','--accent-fg':'#ffffff',
-    '--msg-own-bg':'#3f5fe0','--msg-own-fg':'#ffffff',
-    '--msg-peer-bg':'#ffffff','--msg-peer-fg':'#1c1c3a',
-    '--topbar-bg':'#1c1c3a','--topbar-fg':'#cdd8ff',
-    '--radius':'16px','--radius-lg':'22px','--border-width':'1px',
-    '--font':'"Trebuchet MS",Tahoma,sans-serif','--font-size':'14px',
-    '--shadow':'0 4px 12px rgba(90,110,255,.25)','--shadow-strong':'0 12px 32px rgba(90,110,255,.35)',
-    '--glow':'none','--blur':'0px','--panel-alpha':'1',
-    '--bg-image':'linear-gradient(135deg, #c9d8ff 0%, #f0e2ff 50%, #d2f3ff 100%)',
-    '--bg-size':'cover','--bg-attachment':'fixed'
+    '--bg':'#dfe9f5',
+    '--bg-image':'linear-gradient(160deg,#f8fbff 0%,#d3e5ff 50%,#9fc0f5 100%)',
+    '--bg-size':'cover','--bg-attachment':'fixed',
+    '--fg':'#1a2b52','--muted':'#5a6f96',
+    '--line':'#3a5ba8','--line-soft':'rgba(58,91,168,.25)',
+    '--panel':'rgba(255,255,255,.75)','--panel-2':'rgba(255,255,255,.5)',
+    '--inv-bg':'#1a2b52','--inv-fg':'#eaf3ff',
+    '--accent':'#1b6cc0','--accent-fg':'#ffffff',
+    '--msg-own-bg':'rgba(31,122,214,.15)','--msg-own-fg':'#1a2b52',
+    '--msg-peer-bg':'rgba(255,255,255,.8)','--msg-peer-fg':'#1a2b52',
+    '--topbar-bg':'rgba(255,255,255,.6)','--topbar-fg':'#1a2b52',
+    '--radius':'10px','--radius-lg':'14px','--border-width':'1px',
+    '--shadow':'0 2px 8px rgba(27,108,192,.25)','--shadow-strong':'0 10px 28px rgba(26,43,82,.3)',
+    '--glow':'0 0 8px rgba(27,108,192,.4)','--blur':'8px','--panel-alpha':'0.7'
   }},
   {id:'terminal',name:'Терминал',sub:'зелёный фосфор',mode:'dark',vars:{
-    '--bg':'#000000','--fg':'#00ff41','--muted':'#00a02a',
-    '--line':'#00ff41','--line-soft':'#003b10',
-    '--panel':'#04140a','--panel-2':'#082010',
-    '--inv-bg':'#00ff41','--inv-fg':'#001a08',
-    '--accent':'#00ff41','--accent-fg':'#001a08',
-    '--msg-own-bg':'#04240e','--msg-own-fg':'#8dffab',
-    '--msg-peer-bg':'#06180c','--msg-peer-fg':'#00ff41',
-    '--topbar-bg':'#001a08','--topbar-fg':'#00ff41',
-    '--radius':'0px','--radius-lg':'0px','--border-width':'1px',
-    '--font':MONO_STACK,'--font-size':'14px',
-    '--shadow':'none','--shadow-strong':'none',
-    '--glow':'0 0 6px rgba(0,255,65,.6)','--blur':'0px','--panel-alpha':'1',
-    '--bg-image':'none','--bg-size':'cover','--bg-attachment':'fixed'
+    '--bg':'#000000','--fg':'#00ff66','--muted':'#00a344',
+    '--line':'#00ff66','--line-soft':'#003b1c',
+    '--panel':'#04130a','--panel-2':'#062713',
+    '--inv-bg':'#00ff66','--inv-fg':'#000000',
+    '--accent':'#00ff66','--accent-fg':'#000000',
+    '--msg-own-bg':'#04240f','--msg-own-fg':'#9dffbe',
+    '--msg-peer-bg':'#04130a','--msg-peer-fg':'#7dffab',
+    '--topbar-bg':'#000000','--topbar-fg':'#00ff66',
+    '--radius':'0','--radius-lg':'0','--border-width':'1px',
+    '--glow':'0 0 6px rgba(0,255,102,.5)'
   }},
   {id:'pastel',name:'Пастель',sub:'мягкие тона',mode:'light',vars:{
-    '--bg':'#fdf6f9','--fg':'#63506e','--muted':'#a08ca8',
-    '--line':'#e5cfe0','--line-soft':'#f3e7f0',
-    '--panel':'#ffffff','--panel-2':'#f7ecf6',
-    '--inv-bg':'#6f5a8f','--inv-fg':'#ffffff',
-    '--accent':'#e78fb3','--accent-fg':'#5f2242',
-    '--msg-own-bg':'#ffd9ec','--msg-own-fg':'#71496b',
-    '--msg-peer-bg':'#e3f1fa','--msg-peer-fg':'#3f6478',
-    '--topbar-bg':'#efe3f7','--topbar-fg':'#5f4b76',
-    '--radius':'18px','--radius-lg':'24px','--border-width':'1px',
-    '--font':'Verdana,Geneva,sans-serif','--font-size':'14px',
-    '--shadow':'0 4px 14px rgba(190,150,180,.25)','--shadow-strong':'0 10px 28px rgba(190,150,180,.35)',
-    '--glow':'none','--blur':'0px','--panel-alpha':'1',
-    '--bg-image':'linear-gradient(150deg, #ffeaf3 0%, #fdeff8 45%, #e8f3ff 100%)',
-    '--bg-size':'cover','--bg-attachment':'fixed'
+    '--bg':'#fbf3ee','--fg':'#5c4a52','--muted':'#a08a92',
+    '--line':'#d9bfc6','--line-soft':'#ecdcd6',
+    '--panel':'#f6e7e4','--panel-2':'#efdad8',
+    '--inv-bg':'#5c4a52','--inv-fg':'#fff8f4',
+    '--accent':'#e59aac','--accent-fg':'#45242e',
+    '--msg-own-bg':'#fadde3','--msg-own-fg':'#5c4a52',
+    '--msg-peer-bg':'#e4f0e7','--msg-peer-fg':'#4a5c52',
+    '--topbar-bg':'#f6e7e4','--topbar-fg':'#5c4a52',
+    '--radius':'14px','--radius-lg':'18px','--border-width':'1px',
+    '--shadow':'0 2px 8px rgba(180,140,150,.2)'
   }}
 ];
 
+function presetVars(p){
+  const mode=p.mode||state.mode;
+  return p.varsFn?p.varsFn(mode):(p.vars||{});
+}
+
 function loadPreset(p){
+  const vars=presetVars(p);
   state.vars={};
-  for(const k of ALL_VARS)if(p.vars[k]!=null)state.vars[k]=p.vars[k];
+  for(const k of ALL_VARS)if(vars[k]!=null)state.vars[k]=vars[k];
   if(p.mode)state.mode=p.mode;
   state.name=p.name;
   commit();
   toast('Пресет: '+p.name);
 }
 
-/* Мини-превью пресета: палитра из его переменных + Classic его режима */
+/* Мини-превью пресета: палитра из его переменных + база его режима */
 function presetGet(p){
   const mode=p.mode||state.mode;
-  return k=>eff(k,p.vars,mode);
+  return k=>{
+    const vars=presetVars(p);
+    if(vars[k]!=null)return vars[k];
+    return BASE[mode][k]||'';
+  };
 }
 
 function renderPresets(){
@@ -1142,59 +1139,111 @@ function renderPresets(){
   }
 }
 
-/* Случайный скин: гармоничная палитра вокруг случайного оттенка */
-function randomSkin(){
-  const light=state.mode==='light';
-  const h=Math.floor(Math.random()*360);
-  const h2=(h+120+Math.floor(Math.random()*120))%360; // соседний оттенок
-  const hsl=(hh,s,l)=>'hsl('+hh+', '+s+'%, '+l+'%)';
-  const hsla=(hh,s,l,a)=>'hsla('+hh+', '+s+'%, '+l+'%, '+a+')';
-  const R=n=>Math.round(n);
+/* Случайный скин: гармоничная палитра вокруг случайного оттенка.
+   Гарантируем контраст текст/фон и текст/акцент не ниже 4.5:1.
+   Шрифт не трогаем (см. примечание к пресетам). */
+function makeRandomVars(mode){
+  const light=mode==='light';
+  const R=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+  const pick=arr=>arr[R(0,arr.length-1)];
+  const h=R(0,359);
+  const h2=((h+pick([25,35,150,180,210,-35,-25]))%360+360)%360;
+  const hex=(hh,s,l)=>toHex(hslToRgb(hh,s,l));
+  const rgb=(hh,s,l)=>{const c=hslToRgb(hh,s,l);return c.r+','+c.g+','+c.b;};
   const v={};
-  if(light){
-    v['--bg']=hsl(h,45,95);v['--fg']=hsl(h,35,14);v['--muted']=hsl(h,14,42);
-    v['--line']=hsl(h,25,75);v['--line-soft']=hsl(h,30,88);
-    v['--panel']=hsl(h,50,97);v['--panel-2']=hsl(h,42,90);
-    v['--inv-bg']=hsl(h,35,14);v['--inv-fg']=hsl(h,45,95);
-  }else{
-    v['--bg']=hsl(h,35,7);v['--fg']=hsl(h,25,93);v['--muted']=hsl(h,12,62);
-    v['--line']=hsl(h,25,38);v['--line-soft']=hsl(h,20,18);
-    v['--panel']=hsl(h,30,13);v['--panel-2']=hsl(h,28,19);
-    v['--inv-bg']=hsl(h,25,93);v['--inv-fg']=hsl(h,35,7);
+  const bgL=light?R(93,96):R(5,9),bgS=R(28,55);
+  v['--bg']=hex(h,bgS,bgL);
+  const bgC=parseColor(v['--bg']);
+  let fL=light?R(10,16):R(90,96);
+  for(let i=0;i<48;i++){
+    const c=parseColor(hex(h,Math.round(bgS*0.7),fL));
+    if(contrastRatio(c,bgC)>=4.5)break;
+    fL=clamp(fL+(light?-2:2),0,100);
   }
-  const accS=65+Math.floor(Math.random()*25);
-  const accL=light?46:58;
-  const accC=parseColor(hsl(h2,accS,accL));
-  const accFg=(accC&&contrastRatio(parseColor('#ffffff'),accC)>=contrastRatio(parseColor('#000000'),accC))?'#ffffff':'#000000';
-  v['--accent']=hsl(h2,accS,accL);v['--accent-fg']=accFg;
-  v['--msg-own-bg']=v['--accent'];v['--msg-own-fg']=accFg;
-  v['--msg-peer-bg']=v['--panel'];v['--msg-peer-fg']=v['--fg'];
-  v['--topbar-bg']=v['--inv-bg'];v['--topbar-fg']=v['--inv-fg'];
-  const rad=[0,4,8,12,16,20][Math.floor(Math.random()*6)];
+  v['--fg']=hex(h,Math.round(bgS*0.7),fL);
+  v['--muted']=hex(h,R(8,16),light?R(38,48):R(60,70));
+  v['--line']=light?hex(h,R(20,30),R(70,78)):hex(h,R(20,30),R(30,40));
+  v['--line-soft']=light?hex(h,R(24,34),R(85,90)):hex(h,R(18,26),R(14,20));
+  v['--panel']=light?hex(h,Math.max(4,bgS-6),97):hex(h,bgS,13);
+  v['--panel-2']=light?hex(h,Math.max(4,bgS-6),90):hex(h,bgS,19);
+  v['--inv-bg']=v['--fg'];
+  v['--inv-fg']=v['--bg'];
+  // акцент: подбираем светлоту, чтобы белый или чёрный давали 4.5:1
+  const aS=R(60,85);
+  let aL=light?R(40,52):R(54,66);
+  const bestFg=()=>{
+    const c=parseColor(hex(h2,aS,aL));
+    const w=contrastRatio({r:255,g:255,b:255,a:1},c),b=contrastRatio({r:0,g:0,b:0,a:1},c);
+    if(w>=4.5&&w>=b)return '#ffffff';
+    if(b>=4.5)return '#000000';
+    return null;
+  };
+  let accFg=null,tries=0;
+  while(accFg==null&&tries<48){accFg=bestFg();if(accFg==null){aL=clamp(aL+(light?-2:2),18,94);tries++;}}
+  if(accFg==null)accFg=bestFg()||'#ffffff';
+  v['--accent']=hex(h2,aS,aL);
+  v['--accent-fg']=accFg;
+  v['--msg-own-bg']='rgba('+rgb(h2,aS,aL)+',0.18)';
+  v['--msg-own-fg']=v['--fg'];
+  v['--msg-peer-bg']=v['--panel'];
+  v['--msg-peer-fg']=v['--fg'];
+  v['--topbar-bg']=v['--fg'];
+  v['--topbar-fg']=v['--bg'];
+  const rad=pick([0,4,8,12,16,20,24]);
   v['--radius']=rad+'px';
-  v['--radius-lg']=Math.min(64,rad+6)+'px';
+  v['--radius-lg']=Math.min(64,rad+R(2,8))+'px';
   v['--border-width']='1px';
-  v['--font']=SAFE_FONTS[Math.floor(Math.random()*SAFE_FONTS.length)].v;
   v['--font-size']='14px';
-  const shA=(light?0.10:0.30)+Math.random()*0.15;
-  v['--shadow']='0 4px '+(10+R(14))+'px rgba(0,0,0,'+shA.toFixed(2)+')';
-  v['--shadow-strong']='0 10px 30px rgba(0,0,0,'+(shA+0.12).toFixed(2)+')';
-  v['--glow']=(!light&&Math.random()<0.5)?('0 0 '+(4+R(8))+'px '+hsla(h2,90,65,0.8)):'none';
-  v['--blur']='0px';
-  v['--panel-alpha']='1';
-  v['--bg-image']=Math.random()<0.45?('linear-gradient('+R(360)+'deg, '+hsl(h,55,light?92:16)+', '+hsl(h2,50,light?85:24)+')'):'none';
-  v['--bg-size']='cover';
-  v['--bg-attachment']='fixed';
-  state.vars=v;
-  commit();
-  toast('Сгенерирован случайный скин — палитра вокруг оттенка '+h+'°');
+  const shA=(light?0.10:0.28)+Math.random()*0.14;
+  v['--shadow']='0 4px '+R(10,22)+'px rgba(0,0,0,'+shA.toFixed(2)+')';
+  v['--shadow-strong']='0 10px 30px rgba(0,0,0,'+Math.min(0.6,shA+0.14).toFixed(2)+')';
+  v['--glow']=(!light&&Math.random()<0.6)?('0 0 '+R(4,10)+'px '+v['--accent']):'none';
+  if(Math.random()<0.25)v['--blur']=pick(['4px','6px','10px']);
+  if(Math.random()<0.45){
+    v['--bg-image']='linear-gradient('+R(0,360)+'deg, '+hex(h,bgS,clamp(light?bgL+2:bgL-2,0,99))+' 0%, '+hex(h2,Math.min(90,bgS+20),light?R(85,90):R(16,26))+' 100%)';
+    v['--bg-size']='cover';
+    v['--bg-attachment']='fixed';
+  }
+  return v;
 }
+function randomSkin(){
+  state.vars=makeRandomVars(state.mode);
+  if(!state.name.trim()||state.name==='Classic')state.name='Случайный №'+R2();
+  commit();
+  toast('Сгенерирован случайный скин — проверьте контраст и попробуйте другой режим');
+}
+function R2(){return String(100+Math.floor(Math.random()*900));}
 
 /* ================= 6. ПРЕДПРОСМОТР ================= */
-/* Переменные применяются на контейнер .pv через style.setProperty */
+/* Переменные применяются на контейнер .pv через style.setProperty —
+   так же, как Skyle применяет скин на documentElement.
+   Канонизация значений повторяет checkVal валидатора Skyle:
+   короткое имя шрифта разворачивается в стек, чистый data-URI
+   оборачивается в url(), alpha приводится к числу. */
+function previewVal(k,v){
+  if(k==='--font')return FONTS[String(v).toLowerCase()]||v;
+  if(k==='--bg-image'&&/^data:/i.test(v))return 'url('+v+')';
+  if(k==='--panel-alpha')return String(Number(v));
+  if(k==='--bg-attachment')return String(v).toLowerCase();
+  return v;
+}
+let appliedKeys=[];
 function applyPreview(){
-  const st=byId('pv').style;
-  for(const k of ALL_VARS)st.setProperty(k,eff(k,state.vars,state.mode));
+  const pv=byId('pv');
+  if(!pv)return;
+  pv.dataset.mode=state.mode;
+  const st=pv.style;
+  for(const k of appliedKeys)st.removeProperty(k);
+  appliedKeys=[];
+  for(const k of ALL_VARS){
+    const v=state.vars[k];
+    if(v==null)continue;
+    const c=skCheckVal(k,v);
+    if(c==null)continue;
+    const pv2=previewVal(k,c);
+    st.setProperty(k,pv2);
+    appliedKeys.push(k);
+  }
 }
 
 function showPvScreen(s){
@@ -1206,14 +1255,17 @@ function showPvScreen(s){
   document.querySelectorAll('.pv-screen').forEach(x=>x.classList.toggle('on',x.dataset.pvs===s));
 }
 
-function updatePvModalText(){
-  byId('pv-mtext').textContent='Скин «'+(state.name.trim()||'Без имени')+'» изменит оформление Skyle на этом устройстве.';
+function updatePvTexts(){
+  const nm=state.name.trim()||'Мой скин';
+  byId('pv-mtext').textContent='Применить скин «'+nm+'»?';
+  const note=byId('pv-skin-note');
+  if(note)note.textContent='ТЕКУЩИЙ СКИН: '+(state.name.trim()||'—')+(state.author.trim()?' · АВТОР: '+state.author.trim():'');
 }
 
 /* ================= 7. UI РЕДАКТОРА ================= */
 const el={};
 function grab(){
-  const ids=['pv','pgrid','g-colors','g-shape','g-text','g-fx','grad-rows','f-name','f-author','m-light','m-dark','btn-random','btn-reset','bg-none','bg-img-btn','bg-img-file','bg-info','bg-size','bg-att','in:grad-a','sv:grad-a','btn-dl','btn-cjson','btn-clink','exp-info','imp-file','imp-text','btn-imp','imp-err','btn-pvmodal','pv-modalwrap','pv-mtext','chk-simple','s-toasts','btn-file'];
+  const ids=['pv','pgrid','g-colors','g-shape','g-text','g-fx','grad-rows','f-name','f-author','m-light','m-dark','btn-random','btn-reset','bg-none','bg-img-btn','bg-img-file','bg-info','bg-size','bg-att','in:grad-a','sv:grad-a','btn-dl','btn-cjson','btn-clink','exp-info','exp-err','imp-file','imp-text','btn-imp','imp-err','btn-pvmodal','pv-modalwrap','pv-mtext','pv-skin-note','chk-simple','s-toasts','btn-file'];
   for(const id of ids)el[id]=byId(id);
 }
 
@@ -1251,8 +1303,7 @@ function buildColorRows(){
     const vi=document.createElement('i');vi.textContent=' · '+label;
     nm.append(vb,vi);
     meta.append(nm);
-    const pair=CONTRAST_PAIRS.find(p=>p[0]===k);
-    if(pair){
+    if(CONTRAST_PAIRS.some(p=>p[0]===k)){
       const chip=document.createElement('span');
       chip.className='chip';chip.id='chip:'+k;chip.hidden=true;
       meta.append(chip);
@@ -1264,7 +1315,7 @@ function buildColorRows(){
     tx.addEventListener('input',()=>{
       const v=tx.value.trim();
       if(v===''){tx.classList.remove('bad');setVar(k,null);return;}
-      if(parseColor(v)){tx.classList.remove('bad');setVar(k,v);}
+      if(skCheckVal(k,v)!=null){tx.classList.remove('bad');setVar(k,v);}
       else tx.classList.add('bad');
     });
     const rs=document.createElement('button');
@@ -1280,7 +1331,7 @@ function buildColorRows(){
 
 function refreshColorInputs(){
   for(const[k]of COLOR_META){
-    const v=eff(k,state.vars,state.mode);
+    const v=eff(k);
     const tx=byId('cv:'+k);
     if(document.activeElement!==tx)tx.value=(k in state.vars)?state.vars[k]:'';
     tx.title='Сейчас: '+v;
@@ -1292,13 +1343,17 @@ function refreshColorInputs(){
   }
 }
 
+/* Чипы контраста: прозрачные цвета смешиваются с фоном страницы,
+   как их отрисует браузер в Skyle */
 function refreshChips(){
-  const pageBg=parseColor(eff('--bg',state.vars,state.mode))||{r:255,g:255,b:255,a:1};
+  const canvasC=state.mode==='dark'?{r:0,g:0,b:0,a:1}:{r:255,g:255,b:255,a:1};
+  const bgC=parseColor(eff('--bg'));
+  const pageBg=bgC?composite(bgC,canvasC):canvasC;
   for(const[fg,bg]of CONTRAST_PAIRS){
     const chip=byId('chip:'+fg);
     if(!chip)continue;
-    const cf=parseColor(eff(fg,state.vars,state.mode));
-    const cb=parseColor(eff(bg,state.vars,state.mode));
+    const cf=parseColor(eff(fg));
+    const cb=parseColor(eff(bg));
     if(!cf||!cb){chip.hidden=true;continue;}
     const under=composite(cb,pageBg);
     const top=composite(cf,under);
@@ -1328,27 +1383,38 @@ function refreshLenSlider(k,raw){
   byId('sv:'+k).textContent=raw;
 }
 function refreshShape(){
-  for(const[k]of SHAPE_VARS)refreshLenSlider(k,eff(k,state.vars,state.mode));
+  for(const[k]of SHAPE_VARS)refreshLenSlider(k,eff(k));
 }
 
 /* ---- Группа «Текст» ---- */
+const FONT_OPTIONS=[
+  {v:'',l:'(не менять — штатный моно)'},
+  {v:'mono',l:'Моноширинный — штатный (mono)'},
+  {v:'system',l:'Системная: Segoe UI / Roboto (system)'},
+  {v:'sans',l:'Arial / Helvetica (sans)'},
+  {v:'serif',l:'Georgia / Times New Roman (serif)'},
+  {v:'courier',l:'Courier New (courier)'},
+  {v:'rounded',l:'Trebuchet MS / Tahoma (rounded)'}
+];
 function buildText(){
   const root=el['g-text'];root.textContent='';
-  const lbl=document.createElement('label');lbl.className='slbl';lbl.htmlFor='f-font';lbl.textContent='ШРИФТ (БЕЗОПАСНЫЕ СТЕКИ)';
+  const lbl=document.createElement('label');lbl.className='slbl';lbl.htmlFor='f-font';lbl.textContent='ШРИФТ (КОРОТКОЕ ИМЯ ИЗ БЕЛОГО СПИСКА SKYLE)';
   const sel=document.createElement('select');sel.className='sinp';sel.id='f-font';
-  for(const f of SAFE_FONTS){
+  for(const f of FONT_OPTIONS){
     const o=document.createElement('option');o.value=f.v;o.textContent=f.l;
     sel.append(o);
   }
-  sel.addEventListener('change',()=>setVar('--font',sel.value));
+  sel.addEventListener('change',()=>setVar('--font',sel.value===''?null:sel.value));
   root.append(lbl,sel);
-  mkSlider(root,'--font-size','Размер текста',10,24,1,v=>setVar('--font-size',v+'px'));
+  mkSlider(root,'--font-size','Размер текста',8,28,1,v=>setVar('--font-size',v+'px'));
+  const warn=document.createElement('div');warn.className='shint';
+  warn.innerHTML='<b>ВАЖНО про --font:</b> в JSON пишется короткое имя (mono, system, …). Текущая версия Skyle хранит скин с уже развёрнутым стеком шрифта и после перезапуска страницы может не применить скин с --font целиком. Если оформление слетело — импортируйте файл скина заново: SSM такие скины чинит.';
+  root.append(warn);
 }
 function refreshText(){
-  const cur=eff('--font',state.vars,state.mode);
-  const f=SAFE_FONTS.find(x=>x.v===cur)||SAFE_FONTS[0];
-  byId('f-font').value=f.v; // селект создаётся динамически — берём живой поиск
-  refreshLenSlider('--font-size',eff('--font-size',state.vars,state.mode));
+  const sel=byId('f-font');
+  sel.value=state.vars['--font']||'';
+  refreshLenSlider('--font-size',eff('--font-size'));
 }
 
 /* ---- Группа «Эффекты» ---- */
@@ -1372,7 +1438,7 @@ function buildFx(){
     inp.addEventListener('input',()=>{
       const v=inp.value.trim();
       if(v===''){inp.classList.remove('bad');setVar(k,null);return;}
-      if(v==='none'||validShadow(v)){inp.classList.remove('bad');setVar(k,v);}
+      if(skCheckVal(k,v)!=null){inp.classList.remove('bad');setVar(k,v);}
       else inp.classList.add('bad');
     });
     const chips=document.createElement('div');chips.className='chips';
@@ -1385,18 +1451,17 @@ function buildFx(){
     box.append(inp,chips);
     root.append(box);
   }
-  mkSlider(root,'--blur','Размытие панелей (--blur)',0,40,1,v=>setVar('--blur',v+'px'));
-  mkSlider(root,'--panel-alpha','Непрозрачность панелей (--panel-alpha)',0,1,0.05,v=>setVar('--panel-alpha',String(Math.round(v*100)/100)));
+  mkSlider(root,'--blur','Размытие оверлеев и окон (--blur)',0,32,1,v=>setVar('--blur',v+'px'));
+  mkSlider(root,'--panel-alpha','Подсветка участников (--panel-alpha)',0,1,0.05,v=>setVar('--panel-alpha',String(Math.round(v*100)/100)));
 }
 function refreshFx(){
   for(const k of FX_VARS){
     const inp=byId('cv:'+k);
     if(document.activeElement!==inp)inp.value=(k in state.vars)?state.vars[k]:'';
-    const val=state.vars[k];
-    inp.classList.toggle('bad',val!=null&&val!=='none'&&!validShadow(val));
+    inp.classList.toggle('bad',state.vars[k]!=null&&skCheckVal(k,state.vars[k])==null);
   }
-  refreshLenSlider('--blur',eff('--blur',state.vars,state.mode));
-  const pa=parseFloat(eff('--panel-alpha',state.vars,state.mode));
+  refreshLenSlider('--blur',eff('--blur'));
+  const pa=parseFloat(eff('--panel-alpha'));
   const a=isFinite(pa)?clamp(pa,0,1):1;
   byId('in:--panel-alpha').value=String(a);
   byId('sv:--panel-alpha').textContent=Math.round(a*100)+'%';
@@ -1429,9 +1494,9 @@ function buildBg(){
   mkRow('c1','Цвет 1');
   mkRow('c2','Цвет 2');
   el['in:grad-a'].addEventListener('input',()=>{grad.a=+el['in:grad-a'].value;applyGrad();});
-  el['bg-none'].addEventListener('click',()=>setVar('--bg-image','none'));
-  el['bg-size'].addEventListener('change',()=>setVar('--bg-size',el['bg-size'].value));
-  el['bg-att'].addEventListener('change',()=>setVar('--bg-attachment',el['bg-att'].value));
+  el['bg-none'].addEventListener('click',()=>setVar('--bg-image',null));
+  el['bg-size'].addEventListener('change',()=>setVar('--bg-size',el['bg-size'].value===''?null:el['bg-size'].value));
+  el['bg-att'].addEventListener('change',()=>setVar('--bg-attachment',el['bg-att'].value===''?null:el['bg-att'].value));
   el['bg-img-btn'].addEventListener('click',()=>el['bg-img-file'].click());
   el['bg-img-file'].addEventListener('change',onBgFile);
 }
@@ -1448,8 +1513,8 @@ function parseLinear2(v){
   const am=/^(-?[\d.]+)deg$/i.exec(parts[0]);
   if(am){a=Math.round(((parseFloat(am[1])%360)+360)%360);i=1;}
   const rest=parts.slice(i);
-  if(rest.length<2)return null;
-  const c1=parseColor(rest[0]),c2=parseColor(rest[rest.length-1]);
+  if(rest.length!==2)return null;
+  const c1=parseColor(rest[0]),c2=parseColor(rest[1]);
   if(!c1||!c2)return null;
   return{a,c1:toHex(c1),c2:toHex(c2)};
 }
@@ -1459,11 +1524,12 @@ function setSel(sel,val,allowed){
 function describeBg(v){
   if(v==='none'||v==='')return 'Фон: однотонный цвет --bg.';
   if(/^(linear|radial)-gradient\(/i.test(v))return 'Фон: градиент. Правка цветов ниже перезапишет его простым двухцветным вариантом.';
-  if(/^url\("data:image\//.test(v))return 'Фон: встроенная картинка — '+fmtKB(v.length)+' внутри скина (лимит 1 МБ).';
-  return 'Фон: нестандартное значение — сохранится как есть.';
+  if(/^data:image\//i.test(v))return 'Фон: встроенная картинка — '+fmtKB(v.length)+' в скине (лимит Skyle ~1 МБ).';
+  if(/^url\(/i.test(v))return 'Фон: встроенная картинка (url) — '+fmtKB(v.length)+' в скине.';
+  return 'Фон: нестандартное значение — Skyle его отклонит.';
 }
 function refreshBg(){
-  const v=eff('--bg-image',state.vars,state.mode);
+  const v=eff('--bg-image');
   const p=parseLinear2(v);
   if(p){grad.c1=p.c1;grad.c2=p.c2;grad.a=p.a;}
   for(const[key,swId,txId]of[['c1','gsw:c1','gtx:c1'],['c2','gsw:c2','gtx:c2']]){
@@ -1475,8 +1541,8 @@ function refreshBg(){
   }
   el['in:grad-a'].value=String(grad.a);
   el['sv:grad-a'].textContent=grad.a+'°';
-  setSel(el['bg-size'],eff('--bg-size',state.vars,state.mode),['cover','contain','auto']);
-  setSel(el['bg-att'],eff('--bg-attachment',state.vars,state.mode),['fixed','scroll']);
+  setSel(el['bg-size'],state.vars['--bg-size']||'',['','cover','contain','auto']);
+  setSel(el['bg-att'],state.vars['--bg-attachment']||'',['','fixed','scroll','local']);
   el['bg-info'].textContent=describeBg(v);
 }
 
@@ -1490,16 +1556,17 @@ function renderAll(){
   el['m-dark'].setAttribute('aria-pressed',String(state.mode==='dark'));
   refreshColorInputs();refreshChips();refreshShape();refreshText();refreshFx();refreshBg();
   applyPreview();
-  el.pv.classList.toggle('simple',state.simple);
+  const pv=el.pv;
+  if(pv)pv.classList.toggle('simple',state.simple);
   el['chk-simple'].checked=state.simple;
   renderPresets();
   refreshExportInfo();
-  updatePvModalText();
+  updatePvTexts();
 }
 
 function bindStatic(){
-  el['f-name'].addEventListener('input',()=>{state.name=el['f-name'].value.slice(0,30);commit();});
-  el['f-author'].addEventListener('input',()=>{state.author=el['f-author'].value.slice(0,30);commit();});
+  el['f-name'].addEventListener('input',()=>{state.name=el['f-name'].value.slice(0,40);commit();});
+  el['f-author'].addEventListener('input',()=>{state.author=el['f-author'].value.slice(0,40);commit();});
   el['m-light'].addEventListener('click',()=>setMode('light'));
   el['m-dark'].addEventListener('click',()=>setMode('dark'));
   el['btn-random'].addEventListener('click',randomSkin);
@@ -1543,7 +1610,8 @@ function bindStatic(){
 
 /* ================= 8. ФОН-КАРТИНКА ================= */
 /* Уменьшаем через canvas до 1280px по длинной стороне, кодируем в webp
-   (или jpeg как запасной вариант), пока не влезем в 1 МБ. */
+   (или jpeg как запасной вариант), пока data:-строка не влезет в лимит
+   Skyle (~1 МБ base64, MAX_IMG_CHARS символов). */
 function readAsDataURL(file){
   return new Promise((res,rej)=>{
     const r=new FileReader();
@@ -1593,8 +1661,11 @@ async function onBgFile(e){
   el['bg-img-btn'].disabled=true;
   try{
     const res=await processImage(f);
-    if(!res){toast('Не удалось ужать картинку до 1 МБ — возьмите изображение поменьше');return;}
-    setVar('--bg-image','url("'+res.dataUrl+'")');
+    if(!res){toast('Не удалось ужать картинку до лимита Skyle — возьмите изображение поменьше');return;}
+    // сохраняем ЧИСТЫЙ data-URI: Skyle сам оборачивает его в url() (как в checkVal)
+    state.vars['--bg-image']=res.dataUrl;
+    if(state.vars['--bg-size']==null)state.vars['--bg-size']='cover'; // картинке обычно нужен cover
+    commit();
     toast('Картинка добавлена: '+res.w+'×'+res.h+', '+fmtKB(res.dataUrl.length)+' ('+(res.mime==='image/webp'?'webp':'jpeg')+')');
   }catch(err){
     toast('Не удалось обработать картинку: '+err.message);
@@ -1603,10 +1674,21 @@ async function onBgFile(e){
 }
 
 /* ================= 9. ЭКСПОРТ / ИМПОРТ ================= */
-function buildSkinJSON(){
-  const skin={ssm:SKIN_VERSION,name:state.name.trim().slice(0,30)||'Без имени',author:state.author.trim().slice(0,30),mode:state.mode,vars:{}};
-  for(const k of ALL_VARS)if(state.vars[k]!=null)skin.vars[k]=state.vars[k];
-  return skin;
+/* Сборка скина: в JSON идут только явно заданные переменные — остальное
+   Skyle добирает из своей базы. Проверка итогового JSON — тем же
+   валидатором, что стоит внутри Skyle. */
+function buildSkin(){
+  const vars={};
+  for(const k of ALL_VARS){
+    const v=state.vars[k];
+    if(v==null)continue;
+    if(skCheckVal(k,v)==null)return{err:k};
+    vars[k]=v;
+  }
+  const skin={ssm:1,name:state.name.trim().slice(0,40)||'Мой скин',mode:state.mode,vars};
+  const a=state.author.trim().slice(0,40);
+  if(a)skin.author=a;
+  return{skin};
 }
 function b64url(str){
   const bytes=new TextEncoder().encode(str);
@@ -1623,39 +1705,72 @@ function unb64url(s){
   return new TextDecoder().decode(bytes);
 }
 function slug(s){
-  return (s||'').trim().replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,'-').slice(0,40)||'skin';
+  return (s||'').trim().replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,'-').slice(0,60)||'skin';
+}
+function showExportBlock(list){
+  const box=el['exp-err'];
+  if(!list||!list.length){box.hidden=true;box.textContent='';return;}
+  box.hidden=false;
+  box.textContent=list.join('\n');
+}
+function exportable(){
+  showExportBlock(null);
+  if(!Object.keys(state.vars).length){
+    showExportBlock(['Скин пустой: измените хотя бы одну переменную или возьмите пресет.\nSkyle не принимает скины без переменных.']);
+    return null;
+  }
+  const b=buildSkin();
+  if(b.err){
+    showExportBlock(['Переменная '+b.err+' содержит недопустимое значение — исправьте её (поле подсвечено красным).']);
+    return null;
+  }
+  const json=JSON.stringify(b.skin);
+  const v=skValidate(JSON.parse(json));
+  if(!v.ok){
+    showExportBlock(['Skyle отклонит этот скин: '+v.error]);
+    return null;
+  }
+  return{skin:b.skin,json};
 }
 function refreshExportInfo(){
-  const json=JSON.stringify(buildSkinJSON());
-  const link=SKYLE_URL+'#skin='+b64url(json);
-  let t='JSON: '+fmtKB(json.length)+' · ссылка: '+link.length+' симв.';
-  if(link.length>MAX_URL_LEN)t+=' · картинка не влезет в ссылку — скачивайте файл';
+  if(!el['exp-info'])return;
+  let t;
+  if(!Object.keys(state.vars).length){
+    t='Скин пустой: экспорт заблокирован. Измените переменные или возьмите пресет.';
+  }else{
+    const b=buildSkin();
+    if(b.err){t='Есть некорректное значение: '+b.err+' — исправьте поле.';}
+    else{
+      const json=JSON.stringify(b.skin);
+      const link=SKYLE_URL+'#skin='+b64url(json);
+      t='JSON: '+fmtKB(json.length)+' · переменных: '+Object.keys(b.skin.vars).length+' · ссылка: '+link.length+' симв.';
+      if(link.length>MAX_URL_LEN)t+=' · ссылка не влезет в мессенджеры — скачивайте файл';
+      if(b.skin.vars['--font'])t+=' · примечание: --font после перезапуска Skyle может слететь (см. подсказку в «Текст»)';
+    }
+  }
   el['exp-info'].textContent=t;
 }
 function downloadJSON(){
-  const json=JSON.stringify(buildSkinJSON());
-  const v=validateSkin(json);
-  if(!v.ok){showImportErrors(v.errors);toast('Экспорт заблокирован: исправьте ошибки в разделе «Импорт»');return;}
-  const blob=new Blob([json],{type:'application/json'});
+  const x=exportable();
+  if(!x)return;
+  const blob=new Blob([x.json],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  a.download=slug(state.name)+'.ssm.json';
+  a.download=slug(x.skin.name)+'.ssm.json';
   document.body.append(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-  toast('Файл сохранён: '+a.download);
+  toast('Файл сохранён: '+a.download+' — импортируйте его в Skyle: ПРОФИЛЬ → СКИН');
 }
 async function copyJSON(){
-  const json=JSON.stringify(buildSkinJSON());
-  const v=validateSkin(json);
-  if(!v.ok){showImportErrors(v.errors);return;}
-  const ok=await copyText(json);
-  toast(ok?'JSON скина скопирован':'Не удалось скопировать — скачайте файл');
+  const x=exportable();
+  if(!x)return;
+  const ok=await copyText(x.json);
+  toast(ok?'JSON скина скопирован — вставьте его в Skyle: ПРОФИЛЬ → СКИН → ПРИМЕНИТЬ':'Не удалось скопировать — скачайте файл');
 }
 async function copyLink(){
-  const json=JSON.stringify(buildSkinJSON());
-  const v=validateSkin(json);
-  if(!v.ok){showImportErrors(v.errors);return;}
-  const link=SKYLE_URL+'#skin='+b64url(json);
+  const x=exportable();
+  if(!x)return;
+  const link=SKYLE_URL+'#skin='+b64url(x.json);
   if(link.length>MAX_URL_LEN){
     const act=await sModal(
       'Ссылка слишком длинная ('+link.length+' символов): встроенная картинка фона не поместится в адресную строку и в мессенджеры.\n\nСкачайте JSON-файл — он передаст скин целиком, вместе с картинкой.',
@@ -1665,7 +1780,7 @@ async function copyLink(){
     return;
   }
   const ok=await copyText(link);
-  if(ok)toast('Ссылка скопирована. Откройте её — Skyle применит скин. SSM тоже понимает такие ссылки.');
+  if(ok)toast('Ссылка скопирована — откройте её: Skyle применит скин после подтверждения');
   else toast('Не удалось скопировать ссылку');
 }
 function showImportErrors(list){
@@ -1674,27 +1789,78 @@ function showImportErrors(list){
   box.hidden=false;
   box.textContent=list.join('\n');
 }
+/* Ремонт скинов из хранилища Skyle: там --font лежит уже развёрнутым
+   стеком, из-за чего Skyle после перезапуска сам не может их применить.
+   Сворачиваем стек обратно в короткое имя — и скин снова проходит проверку. */
+function repairFontsIn(obj){
+  try{
+    const vars=obj&&obj.vars;
+    if(vars&&typeof vars==='object'&&!Array.isArray(vars)&&typeof vars['--font']==='string'){
+      const f=vars['--font'].trim().toLowerCase();
+      if(!FONTS[f]){
+        for(const s in FONTS){
+          if(FONTS[s].toLowerCase()===f){vars['--font']=s;break;}
+        }
+      }
+    }
+  }catch(e){}
+  return obj;
+}
+/* Парс текста JSON + проверка (как importSkinText в Skyle) */
+function parseSkinText(text){
+  if(typeof text!=='string'||!text.trim())return{ok:false,error:'Пустой ввод: передайте текст JSON.'};
+  if(text.length>MAX_JSON_CHARS)return{ok:false,error:'Данные слишком большие: '+fmtKB(text.length)+' — лимит Skyle 1,5 МБ.'};
+  let obj;
+  try{obj=JSON.parse(text);}
+  catch(e){return{ok:false,error:'Это не корректный JSON: проверьте кавычки, запятые и скобки.'};}
+  const r=skValidate(repairFontsIn(obj));
+  if(!r.ok)return{ok:false,error:'Skyle такой скин не примет: '+r.error};
+  return{ok:true,skin:r.skin};
+}
+/* Каноничный скин -> переменные для редактора (шрифты обратно в короткие имена) */
+function denormVars(cv){
+  const out={};
+  for(const k of Object.keys(cv)){
+    let v=cv[k];
+    if(k==='--font'&&typeof v==='string'){
+      const low=v.toLowerCase();
+      if(FONTS[low])v=low;
+      else{
+        let hit=null;
+        for(const s in FONTS)if(FONTS[s].toLowerCase()===low){hit=s;break;}
+        if(hit)v=hit;else continue;
+      }
+    }
+    out[k]=v;
+  }
+  return out;
+}
 /* Импорт скина в редактор. Возвращает true при успехе. */
 function doImport(raw,srcLabel){
-  const v=validateSkin(raw);
+  const v=parseSkinText(raw);
   if(!v.ok){
-    showImportErrors(v.errors);
-    toast('Импорт'+(srcLabel?' ('+srcLabel+')':'')+' не удался: см. ошибки в разделе «Импорт»');
+    showImportErrors([v.error]);
+    toast('Импорт'+(srcLabel?' ('+srcLabel+')':'')+' не удался: см. ошибку в разделе «Импорт»');
     return false;
   }
-  state.name=v.skin.name;
-  state.author=v.skin.author;
-  state.mode=v.skin.mode;
-  state.vars=v.skin.vars;
+  const sk=v.skin;
+  const unknown=[];
+  for(const k in (sk.vars||{}))if(!ALL_VARS.includes(k))unknown.push(k);
+  state.name=sk.name||'';
+  state.author=sk.author||'';
+  state.mode=sk.mode;
+  state.vars=denormVars(sk.vars);
   commit();
-  showImportErrors(v.warnings.map(w=>'Внимание: '+w));
-  toast('Скин «'+(v.skin.name||'без имени')+'» загружен в редактор');
+  showImportErrors(null);
+  toast('Скин «'+(sk.name||'без имени')+'» загружен — правьте и экспортируйте обратно');
   return true;
 }
-/* Импорт из адресной строки: страница открыта как …#skin=<base64url> */
+/* Импорт из адресной строки: страница открыта как …#skin=<base64url>.
+   Такой же механизм у самого Skyle (fromHash). */
 function importFromHash(){
   const m=location.hash.match(/^#skin=([A-Za-z0-9\-_]+)$/);
   if(!m)return false;
+  if(m[1].length>2100000){showImportErrors(['Ссылка слишком длинная (лимит Skyle — 2 100 000 символов).']);return false;}
   try{
     doImport(unb64url(m[1]),'ссылка');
     return true;
@@ -1703,16 +1869,24 @@ function importFromHash(){
     return false;
   }
 }
-/* Восстановление черновика из localStorage */
+/* Восстановление черновика из localStorage (черновик — доверенный,
+   но значения всё равно прогоняем через валидатор) */
 function loadDraft(){
   try{
     const d=JSON.parse(localStorage.getItem(LS_DRAFT)||'null');
     if(!d||typeof d!=='object')return false;
-    const sv=sanitizeVars(d.vars);
-    state.name=typeof d.name==='string'?d.name.slice(0,30):'';
-    state.author=typeof d.author==='string'?d.author.slice(0,30):'';
+    const vars=(d.vars&&typeof d.vars==='object'&&!Array.isArray(d.vars))?d.vars:{};
+    repairFontsIn({vars});
+    const clean={};
+    for(const k of Object.keys(vars)){
+      if(!VARS[k])continue;
+      const c=skCheckVal(k,vars[k]);
+      if(c!=null)clean[k]=vars[k];
+    }
+    state.name=typeof d.name==='string'?d.name.slice(0,40):'';
+    state.author=typeof d.author==='string'?d.author.slice(0,40):'';
     state.mode=d.mode==='dark'?'dark':'light';
-    state.vars=sv.vars;
+    state.vars=clean;
     return true;
   }catch(e){return false;}
 }
@@ -1730,7 +1904,7 @@ function init(){
   let s=null;
   try{s=localStorage.getItem(LS_SIMPLE);}catch(e){}
   state.simple=(s==null)?!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches):(s==='1');
-  // приоритет: #skin= из ссылки -> черновик -> Classic текущего режима
+  // приоритет: #skin= из ссылки -> черновик -> чистая база Skyle
   const fromHash=importFromHash();
   if(!fromHash)loadDraft();
   // убираем #skin= из адреса, чтобы перезагрузка не затирала правки черновика
@@ -1738,6 +1912,9 @@ function init(){
   catch(e){try{location.hash='';}catch(e2){}}
   renderAll();
 }
+
+/* Наружу — для отладки и тестов */
+window.SSM={VARS,FONTS,BASE,PRESETS,skValidate,skCheckVal,makeRandomVars,buildSkin,parseSkinText,denormVars,repairFontsIn,b64url,unb64url,state,eff};
 init();
 </script>
 </body>
