@@ -1,22 +1,1928 @@
-<section id="whats-new">
-  <h2>🆕 Что нового в Skyle?</h2>
-  <div id="updates">Загрузка обновлений...</div>
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff">
+<title>Skyle — P2P мессенджер (лёгкая версия)</title>
+<link rel="icon" href="data:,">
+<script>
+/* Тема применяется ДО отрисовки, чтобы не было мигания */
+(function(){try{var t=JSON.parse(localStorage.getItem('skyle_theme')||'"auto"');
+if(t!=='light'&&t!=='dark'){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}
+document.documentElement.dataset.theme=t;}catch(e){document.documentElement.dataset.theme='light';}})();
+</script>
+<style>
+/* ============================================================
+   SKYLE — лёгкая версия. Дизайна почти нет: только чёрный, белый
+   и серый, простейшая блочная вёрстка. Ни flexbox, ни CSS-
+   переменных, ни анимаций, ни плавных переходов — чтобы страница
+   открывалась и работала практически в любом браузере.
+   ============================================================ */
+html,body{margin:0;padding:0}
+body{background:#fff;color:#000;font:14px/1.45 ui-monospace,"SF Mono",Consolas,"Liberation Mono",monospace}
+html[data-theme="dark"] body{background:#000;color:#fff}
+button,input,textarea{font-family:inherit;font-size:14px;color:inherit;background:transparent;box-sizing:border-box}
+button{border:1px solid currentColor;padding:8px 10px;cursor:pointer;vertical-align:middle}
+button:hover{opacity:.75}
+button:disabled{opacity:.35;cursor:default}
+a{color:inherit}
+.hidden{display:none}
+.muted{color:#666}
+html[data-theme="dark"] .muted{color:#9a9a9a}
+.small{font-size:11px}
+.wide{display:block;width:100%;margin-top:8px}
+/* ---- экраны ---- */
+.screen{display:none}
+.screen.active{display:block}
+.pad{padding:14px}
+/* ---- верхняя панель (инвертированная) ---- */
+.topbar{background:#000;color:#fff;padding:4px 6px}
+html[data-theme="dark"] .topbar{background:#fff;color:#000}
+.logo{font-weight:bold;letter-spacing:4px;padding:0 6px}
+.btn-top{display:inline-block;border:none;padding:10px 8px;text-decoration:none;cursor:pointer;white-space:nowrap}
+.tb-title{display:inline-block;padding:6px 0;line-height:1.3;vertical-align:middle;max-width:55%}
+.tb-title .t1{font-size:13px}
+.tb-title .t2{display:block;font-size:10px;opacity:.75;word-break:break-all}
+/* ---- текст ---- */
+.h{font-size:12px;font-weight:bold;border-bottom:1px solid currentColor;margin:16px 0 6px;padding-bottom:3px}
+.lbl{font-size:11px;margin:12px 0 4px}
+.note{font-size:11px;margin:8px 0;line-height:1.5}
+.errline{border:1px solid currentColor;padding:8px 10px;margin:10px 0;font-size:12px;line-height:1.5}
+.bigid{font-size:26px;font-weight:bold;padding:14px 0;text-align:center;word-break:break-all}
+.inline-row{margin:4px 0}
+.inline-row .inp{display:inline-block;width:68%;vertical-align:middle}
+.inline-row button{display:inline-block;vertical-align:middle}
+/* ---- поля ввода ---- */
+.inp{display:block;width:100%;border:1px solid currentColor;font-size:16px;padding:8px}
+textarea.inp{resize:vertical}
+.chk{display:block;margin:6px 0;cursor:pointer;font-size:12px}
+.chk input{vertical-align:middle;margin:0 4px 0 0}
+/* ---- вкладки и сегменты ---- */
+.tabs{border-bottom:1px solid currentColor;padding:4px}
+.tab,.seg-btn{margin:0 4px 4px 0}
+.seg{padding:4px 0}
+.tab.on,.seg-btn.on{background:#000;color:#fff}
+html[data-theme="dark"] .tab.on,html[data-theme="dark"] .seg-btn.on{background:#fff;color:#000}
+.btn-primary{background:#000;color:#fff}
+html[data-theme="dark"] .btn-primary{background:#fff;color:#000}
+.btn-mini{padding:4px 8px;font-size:11px}
+.btn-icon{padding:8px;min-width:40px}
+/* ---- списки ---- */
+.row{border-bottom:1px solid #d9d9d9;padding:8px 10px}
+html[data-theme="dark"] .row{border-bottom-color:#2b2b2b}
+.row-t{font-size:13px}
+.row-s{margin-top:2px}
+.row-btns{margin-top:4px}
+.row-btns button,.menu-actions button,.req-b button,.modal-btns button,.f-foot button{margin:0 6px 6px 0}
+.menu-actions{padding:6px 0}
+.empty{display:block;width:100%;border:1px solid currentColor;background:transparent;color:#666;padding:14px;margin:10px 0;text-align:center;cursor:pointer;font-size:12px}
+html[data-theme="dark"] .empty{color:#9a9a9a}
+.unread{font-weight:bold}
+.req{border:1px solid currentColor;padding:10px;margin:8px 0}
+.req-t{font-size:12px}
+/* ---- чат ---- */
+.msglist{height:300px;overflow-y:auto;border-bottom:1px solid currentColor}
+.msglist{height:62vh}
+.msg{padding:2px 12px;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere}
+.msg.self{border-left:3px solid currentColor;margin-left:6px;padding-left:10px}
+.msg.sys{color:#666;text-align:center;font-size:12px;white-space:normal}
+html[data-theme="dark"] .msg.sys{color:#9a9a9a}
+.mtime{color:#666;font-size:12px}
+html[data-theme="dark"] .mtime{color:#9a9a9a}
+.sfx{font-size:11px}
+.fp{padding:6px 12px;border-bottom:1px solid currentColor}
+.hint{padding:4px 12px;font-size:10px;color:#666;border-bottom:1px solid #d9d9d9}
+html[data-theme="dark"] .hint{color:#9a9a9a;border-bottom-color:#2b2b2b}
+.typing{padding:4px 12px}
+.tdot{display:inline-block;width:6px;height:6px;background:currentColor;margin-right:3px}
+.inputrow{padding:8px;border-top:1px solid currentColor}
+.inputrow textarea{display:block;width:100%;margin-bottom:6px}
+.inputrow .btn-icon{margin-right:6px}
+/* ---- участники (полноэкранная панель по кнопке) ---- */
+.members{display:none}
+.members.open{display:block;position:fixed;top:0;left:0;right:0;bottom:0;background:#fff;color:#000;overflow:auto;z-index:50}
+html[data-theme="dark"] .members.open{background:#000;color:#fff}
+.members-head{padding:6px 10px;border-bottom:1px solid currentColor;font-size:12px}
+.members-head .btn-top{float:right}
+.pubrow{padding:8px 10px;border-bottom:1px solid #d9d9d9}
+html[data-theme="dark"] .pubrow{border-bottom-color:#2b2b2b}
+.mem{padding:8px 10px;border-bottom:1px solid #d9d9d9;cursor:pointer}
+html[data-theme="dark"] .mem{border-bottom-color:#2b2b2b}
+.sq{display:inline-block;width:9px;height:9px;border:1px solid currentColor;vertical-align:middle}
+.sq.on{background:currentColor}
+.backdrop{display:none}
+/* ---- файлы ---- */
+.file{border:1px solid currentColor;padding:8px;margin:6px 0;max-width:440px}
+.f-name{word-wrap:break-word}
+.bar{border:1px solid currentColor;height:10px;margin-top:6px}
+.fill{height:100%;background:currentColor;width:0}
+.f-foot{margin-top:6px}
+.f-img{border:1px solid currentColor;max-width:280px;max-height:200px;margin-top:6px}
+.dropzone{position:fixed;top:0;left:0;right:0;bottom:0;background:#fff;color:#000;border:6px solid #000;text-align:center;font-size:14px;padding-top:40%;z-index:60}
+html[data-theme="dark"] .dropzone{background:#000;color:#fff;border-color:#fff}
+/* ---- тосты ---- */
+#toasts{position:fixed;top:6px;left:0;right:0;text-align:center;z-index:100}
+.toast{display:inline-block;background:#000;color:#fff;border:1px solid #fff;padding:10px 12px;font-size:12px;margin:2px;text-align:left}
+/* ---- модальные окна ---- */
+.modal{position:fixed;top:0;left:0;right:0;bottom:0;background:#808080;overflow:auto;padding:14px;z-index:110}
+.modal-box{background:#fff;color:#000;border:1px solid #000;max-width:440px;margin:0 auto;padding:14px}
+html[data-theme="dark"] .modal-box{background:#000;color:#fff;border-color:#fff}
+.modal-text{font-size:13px;line-height:1.5;white-space:pre-wrap}
+.modal-btns{margin-top:12px}
+/* ---- окно «Что нового?» (whatsnew.md) ---- */
+.wn-title{font-weight:bold;font-size:12px;border-bottom:1px solid currentColor;padding-bottom:8px}
+.wn-body{font-size:13px;line-height:1.55;margin-top:10px;max-height:420px;overflow:auto}
+.wn-body h1,.wn-body h2,.wn-body h3{font-weight:bold;margin:14px 0 4px}
+.wn-body h1{font-size:17px}
+.wn-body h2{font-size:14px}
+.wn-body h3{font-size:12px}
+.wn-body p{margin:8px 0}
+.wn-body ul,.wn-body ol{margin:8px 0;padding-left:18px}
+.wn-body li{margin:3px 0}
+.wn-body hr{border:0;border-top:1px solid #d9d9d9;margin:12px 0}
+html[data-theme="dark"] .wn-body hr{border-top-color:#2b2b2b}
+.wn-body code{border:1px solid #d9d9d9;padding:0 4px}
+html[data-theme="dark"] .wn-body code{border-color:#2b2b2b}
+.wn-body pre{border:1px solid #d9d9d9;padding:8px 10px;overflow:auto;font-size:12px;white-space:pre}
+html[data-theme="dark"] .wn-body pre{border-color:#2b2b2b}
+.wn-body a{text-decoration:underline}
+.wn-body blockquote{border-left:3px solid currentColor;margin:8px 0;padding:2px 0 2px 10px;color:#666}
+html[data-theme="dark"] .wn-body blockquote{color:#9a9a9a}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+<!-- ЭКРАН: ОШИБКА -->
+<section class="screen" id="scr-error">
+  <div class="topbar"><span class="logo">SKYLE</span><span class="flex-sp"></span></div>
+  <div class="pad">
+    <div class="h">ОШИБКА</div>
+    <p class="errline" id="err-text"></p>
+    <button class="btn wide" onclick="location.reload()">ОБНОВИТЬ СТРАНИЦУ</button>
+  </div>
 </section>
 
-<script>
-fetch('../whatsnew.md')
-  .then(response => {
-    if (!response.ok) {
-      throw new Error('Не удалось загрузить обновления');
-    }
-    return response.text();
-  })
-  .then(markdown => {
-    document.getElementById('updates').textContent = markdown;
-  })
-  .catch(error => {
-    document.getElementById('updates').textContent =
-      'Не удалось загрузить список обновлений.';
-    console.error(error);
+<!-- ЭКРАН: ПРОФИЛЬ ПРИ ПЕРВОМ ЗАПУСКЕ -->
+<section class="screen" id="scr-setup">
+  <div class="topbar"><span class="logo">SKYLE</span><span class="flex-sp"></span></div>
+  <div class="pad">
+    <div class="h">ПРОФИЛЬ</div>
+    <div class="lbl">НИК (2–20 СИМВОЛОВ)</div>
+    <input class="inp" id="setup-nick" maxlength="20" autocomplete="off" spellcheck="false">
+    <button class="btn btn-primary wide" id="setup-save">СОХРАНИТЬ</button>
+    <div class="note">Без ника дальше не пустим. Вам уже присвоен личный ID:</div>
+    <div class="bigid" id="setup-id">—</div>
+    <div class="note">Скопируйте его заранее: по нему вам будут писать личные сообщения.</div>
+  </div>
+</section>
+
+<!-- ЭКРАН: ГЛАВНОЕ МЕНЮ -->
+<section class="screen" id="scr-menu">
+  <div class="topbar">
+    <span class="logo">SKYLE</span><span class="flex-sp"></span>
+    <a class="btn-top" href="https://triuzed.github.io/skyle/">SKYLE</a>
+    <button class="btn-top" id="theme-btn">ТЕМА: АВТО</button>
+    <button class="btn-top" id="profile-btn">ПРОФИЛЬ</button>
+  </div>
+  <div class="tabs">
+    <button class="tab on" data-tab="rooms">МОИ КОМНАТЫ</button>
+    <button class="tab" data-tab="public">ПУБЛИЧНЫЕ</button>
+    <button class="tab" data-tab="dm">ЛИЧНЫЕ</button>
+  </div>
+  <div class="tabbody" id="tab-rooms">
+    <div class="list" id="rooms-list"></div>
+    <div class="menu-actions">
+      <button class="btn btn-primary" id="go-create">СОЗДАТЬ КОМНАТУ</button>
+      <button class="btn" id="go-join">ВОЙТИ ПО ID</button>
+    </div>
+  </div>
+  <div class="tabbody hidden" id="tab-public">
+    <div class="list" id="public-list"></div>
+  </div>
+  <div class="tabbody hidden" id="tab-dm">
+    <div class="list" id="req-list"></div>
+    <div class="list" id="dm-list"></div>
+    <div class="menu-actions">
+      <button class="btn" id="go-write">НАПИСАТЬ ПО ID</button>
+    </div>
+  </div>
+</section>
+
+<!-- ЭКРАН: СОЗДАНИЕ КОМНАТЫ -->
+<section class="screen" id="scr-create">
+  <div class="topbar">
+    <button class="btn-top" data-back="scr-menu">&lt; НАЗАД</button>
+    <span class="tb-title"><span class="t1">СОЗДАТЬ КОМНАТУ</span></span>
+    <span class="flex-sp"></span>
+  </div>
+  <div class="pad">
+    <div class="lbl">НАЗВАНИЕ (ДО 30 СИМВОЛОВ)</div>
+    <input class="inp" id="create-name" maxlength="30" autocomplete="off">
+    <div class="lbl">ПАРОЛЬ</div>
+    <input class="inp" id="create-pass" type="password" autocomplete="new-password">
+    <label class="chk"><input type="checkbox" id="create-public">
+      <span>ПОКАЗЫВАТЬ В СПИСКЕ ПУБЛИЧНЫХ КОМНАТ</span></label>
+    <div class="note">Название и ID увидят все пользователи Skyle. Для входа нужен пароль.</div>
+    <label class="chk"><input type="checkbox" id="create-remember">
+      <span>ЗАПОМНИТЬ ПАРОЛЬ НА ЭТОМ УСТРОЙСТВЕ</span></label>
+    <button class="btn btn-primary wide" id="create-go">СОЗДАТЬ</button>
+  </div>
+</section>
+
+<!-- ЭКРАН: КОМНАТА СОЗДАНА (крупный ID) -->
+<section class="screen" id="scr-created">
+  <div class="topbar">
+    <button class="btn-top" data-back="scr-menu">&lt; НАЗАД</button>
+    <span class="tb-title"><span class="t1">КОМНАТА СОЗДАНА</span></span>
+    <span class="flex-sp"></span>
+  </div>
+  <div class="pad">
+    <div class="note">Отправьте этот ID собеседникам. Для входа нужен ваш пароль.</div>
+    <div class="bigid" id="created-id">—</div>
+    <button class="btn wide" id="created-copy">КОПИРОВАТЬ</button>
+    <button class="btn btn-primary wide" id="created-enter">ВОЙТИ В КОМНАТУ</button>
+  </div>
+</section>
+
+<!-- ЭКРАН: ВХОД ПО ID -->
+<section class="screen" id="scr-join">
+  <div class="topbar">
+    <button class="btn-top" data-back="scr-menu">&lt; НАЗАД</button>
+    <span class="tb-title"><span class="t1">ВОЙТИ ПО ID</span></span>
+    <span class="flex-sp"></span>
+  </div>
+  <div class="pad">
+    <div class="lbl">ID КОМНАТЫ</div>
+    <input class="inp" id="join-id" maxlength="7" placeholder="XXX-XXX" autocomplete="off" spellcheck="false">
+    <button class="btn wide" id="join-find">НАЙТИ</button>
+    <div class="errline hidden" id="join-err"></div>
+    <div class="hidden" id="join-block">
+      <div class="h" id="join-info">КОМНАТА</div>
+      <div class="lbl">ПАРОЛЬ</div>
+      <input class="inp" id="join-pass" type="password" autocomplete="off">
+      <label class="chk"><input type="checkbox" id="join-remember">
+        <span>ЗАПОМНИТЬ ПАРОЛЬ НА ЭТОМ УСТРОЙСТВЕ</span></label>
+      <button class="btn btn-primary wide" id="join-go">ВОЙТИ</button>
+    </div>
+    <div class="note">Войти можно, пока в комнате кто-то есть: история и проверка пароля живут в памяти участников.</div>
+  </div>
+</section>
+
+<!-- ЭКРАН: ЧАТ КОМНАТЫ -->
+<section class="screen" id="scr-room">
+  <div class="topbar">
+    <button class="btn-top" id="room-back">&lt; НАЗАД</button>
+    <span class="tb-title"><span class="t1" id="room-name">КОМНАТА</span><span class="t2" id="room-sub"></span></span>
+    <span class="flex-sp"></span>
+    <button class="btn-top" id="btn-call" disabled title="Звонки появятся позже (getUserMedia)">ЗВОНОК</button>
+    <button class="btn-top" id="btn-members">УЧАСТНИКИ</button>
+  </div>
+  <div class="chat-wrap">
+    <div class="chat-main" id="room-chatmain">
+      <div class="msglist" id="room-msgs"></div>
+      <div class="hint">ИСТОРИЯ — ТОЛЬКО В ПАМЯТИ, ПОКА В КОМНАТЕ ЕСТЬ ЛЮДИ. ФАЙЛЫ НЕ СОХРАНЯЮТСЯ.</div>
+      <div class="typing hidden" id="room-typing">
+        <span class="tdot"></span><span class="tdot"></span><span class="tdot"></span>
+        <span class="small" id="room-typing-n"></span>
+      </div>
+      <div class="inputrow">
+        <button class="btn-icon" id="room-attach" title="Прикрепить файл" aria-label="Прикрепить файл">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8.5 12.5l6-6a3.2 3.2 0 0 1 4.5 4.5l-8 8a5.3 5.3 0 0 1-7.5-7.5l7.5-7.5"/></svg>
+        </button>
+        <textarea class="inp" id="room-input" rows="1" placeholder="СООБЩЕНИЕ"></textarea>
+        <button class="btn-icon" id="room-send" title="Отправить" aria-label="Отправить">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 11l18-8-7 18-3-8z"/><path d="M11 13l10-10"/></svg>
+        </button>
+      </div>
+    </div>
+    <aside class="members" id="room-members">
+      <div class="members-head">УЧАСТНИКИ <span id="room-count"></span>
+        <button class="btn-top" id="members-close">ЗАКРЫТЬ</button>
+      </div>
+      <div id="room-public-row" class="pubrow hidden">
+        <label class="chk"><input type="checkbox" id="room-public">
+          <span>ПОКАЗЫВАТЬ В СПИСКЕ ПУБЛИЧНЫХ</span></label>
+        <div class="note">Название и ID увидят все пользователи Skyle. Для входа нужен пароль.</div>
+      </div>
+      <div class="list" id="room-members-list"></div>
+    </aside>
+  </div>
+  <button class="backdrop" id="room-backdrop" aria-label="Закрыть список участников"></button>
+  <div class="dropzone hidden" id="room-drop">ОТПУСТИТЕ ФАЙЛ ДЛЯ ОТПРАВКИ</div>
+  <input type="file" id="room-file" hidden>
+</section>
+
+<!-- ЭКРАН: ЛИЧНЫЙ ЧАТ -->
+<section class="screen" id="scr-dm">
+  <div class="topbar">
+    <button class="btn-top" id="dm-back">&lt; НАЗАД</button>
+    <span class="tb-title"><span class="t1" id="dm-name">ДИАЛОГ</span><span class="t2" id="dm-sub"></span></span>
+    <span class="flex-sp"></span>
+    <span class="sq" id="dm-sq" title="Статус собеседника"></span>
+  </div>
+  <div class="chat-wrap">
+    <div class="chat-main" id="dm-chatmain">
+      <div class="fp small muted" id="dm-fp">ОТПЕЧАТОК КЛЮЧА: —</div>
+      <div class="req hidden" id="dm-req">
+        <div class="req-t" id="dm-req-t"></div>
+        <div class="req-b">
+          <button class="btn btn-mini" data-req="accept">ПРИНЯТЬ</button>
+          <button class="btn btn-mini" data-req="decline">ОТКЛОНИТЬ</button>
+          <button class="btn btn-mini" data-req="block">ЗАБЛОКИРОВАТЬ</button>
+        </div>
+      </div>
+      <div class="msglist" id="dm-msgs"></div>
+      <div class="hint">СКОвозное ШИФРОВАНИЕ ECDH. ИСТОРИЯ — ТОЛЬКО В ПАМЯТИ. ОФЛАЙН-ДОСТАВКИ НЕТ.</div>
+      <div class="typing hidden" id="dm-typing">
+        <span class="tdot"></span><span class="tdot"></span><span class="tdot"></span>
+        <span class="small">ПЕЧАТАЕТ...</span>
+      </div>
+      <div class="inputrow">
+        <button class="btn-icon" id="dm-attach" title="Прикрепить файл" aria-label="Прикрепить файл">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8.5 12.5l6-6a3.2 3.2 0 0 1 4.5 4.5l-8 8a5.3 5.3 0 0 1-7.5-7.5l7.5-7.5"/></svg>
+        </button>
+        <textarea class="inp" id="dm-input" rows="1" placeholder="СООБЩЕНИЕ"></textarea>
+        <button class="btn-icon" id="dm-send" title="Отправить" aria-label="Отправить">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 11l18-8-7 18-3-8z"/><path d="M11 13l10-10"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="dropzone hidden" id="dm-drop">ОТПУСТИТЕ ФАЙЛ ДЛЯ ОТПРАВКИ</div>
+  <input type="file" id="dm-file" hidden>
+</section>
+
+<!-- ЭКРАН: НАПИСАТЬ ПО ID -->
+<section class="screen" id="scr-write">
+  <div class="topbar">
+    <button class="btn-top" data-back="scr-menu">&lt; НАЗАД</button>
+    <span class="tb-title"><span class="t1">НАПИСАТЬ ПО ID</span></span>
+    <span class="flex-sp"></span>
+  </div>
+  <div class="pad">
+    <div class="lbl">ЛИЧНЫЙ ID ПОЛУЧАТЕЛЯ</div>
+    <input class="inp" id="write-id" maxlength="7" placeholder="XXX-XXX" autocomplete="off" spellcheck="false">
+    <button class="btn btn-primary wide" id="write-go">ОТКРЫТЬ ЧАТ</button>
+    <div class="note">Адресат должен быть в сети с открытым Skyle. Офлайн-доставки нет.</div>
+  </div>
+</section>
+
+<!-- ЭКРАН: ПРОФИЛЬ -->
+<section class="screen" id="scr-profile">
+  <div class="topbar">
+    <button class="btn-top" data-back="scr-menu">&lt; НАЗАД</button>
+    <span class="tb-title"><span class="t1">ПРОФИЛЬ</span></span>
+    <span class="flex-sp"></span>
+  </div>
+  <div class="pad">
+    <div class="h">НИК</div>
+    <div class="inline-row">
+      <input class="inp" id="prof-nick" maxlength="20" autocomplete="off">
+      <button class="btn" id="prof-nick-save">СОХРАНИТЬ</button>
+    </div>
+
+    <div class="h">ЛИЧНЫЙ ID</div>
+    <div class="bigid" id="prof-id">—</div>
+    <button class="btn wide" id="prof-copy">КОПИРОВАТЬ ID</button>
+    <button class="btn wide" id="prof-reset">СБРОСИТЬ ID</button>
+    <div class="note">Сброс выдаёт новый ID. Старый перестанет работать.</div>
+
+    <div class="h">ТЕМА</div>
+    <div class="seg">
+      <button class="seg-btn" data-mode="light">СВЕТЛАЯ</button>
+      <button class="seg-btn" data-mode="dark">ТЁМНАЯ</button>
+      <button class="seg-btn" data-mode="auto">АВТО</button>
+    </div>
+
+    <div class="h">ЗВУК НОВЫХ СООБЩЕНИЙ</div>
+    <button class="btn wide" id="sound-btn">ЗВУК: ВКЛ</button>
+
+    <div class="h">ЗАБЛОКИРОВАННЫЕ</div>
+    <div class="list" id="blocked-list"></div>
+  </div>
+</section>
+
+</div><!-- /app -->
+<div id="toasts"></div>
+
+<script type="module">
+'use strict';
+/* ============================================================
+   SKYLE — P2P-мессенджер в одном файле.
+   Транспорт: Trystero (WebRTC DataChannel), без своих серверов.
+   Шифрование: Web Crypto API — AES-GCM, PBKDF2 (SHA-256, 200000
+   итераций), ECDH P-256 для личных чатов.
+   ============================================================ */
+
+/* ---------------- КОНСТАНТЫ ---------------- */
+const APP_ID='skyle';                                  // базовое пространство имён
+const ID_ALPHABET='ABCDEFGHJKMNPQRSTUVWXYZ23456789';   // без 0, O, 1, I, L
+const PBKDF2_ITER=200000;                              // итерации PBKDF2
+const FILE_CHUNK=15*1024;                              // байт полезной нагрузки чанка
+const FILE_WINDOW=24;                                  // окно неподтверждённых чанков
+const ROOM_LIMIT=25*1024*1024;                         // лимит файла в комнате (25 МБ)
+const DM_LIMIT=100*1024*1024;                          // лимит файла в личном чате (100 МБ)
+const IMG_LIMIT=5*1024*1024;                           // лимит превью картинки (5 МБ)
+const CTRL_PLAIN='skyle-ok';                           // контрольная строка пароля комнаты
+const NS_LOBBY='skyle-lobby';                          // лобби публичных комнат
+const nsRoom=id=>'skyle-room-'+id;                     // пространство имён комнаты
+const nsDm=pid=>'skyle-dm-'+pid;                       // пространство имён личного ящика
+const EXE_EXT=/\.(exe|msi|bat|cmd|com|scr|pif|sh|bash|apk|jar|dll|so|js|mjs|vbs|ps1|psm1)$/i;
+const IMG_MIME=/^image\/(png|jpeg|gif|webp)$/i;
+const IMG_EXT=/\.(png|jpe?g|gif|webp)$/i;
+const enc=new TextEncoder(), dec=new TextDecoder();
+
+/* ---------------- ГЛОБАЛЬНОЕ СОСТОЯНИЕ ---------------- */
+const T={mod:null,selfId:''};                 // модуль Trystero загружается динамически
+const S={
+  nick:'', pid:'', pubJwk:null, privJwk:null,
+  screen:'scr-menu', tab:'rooms',
+  lobby:{room:null,send:null,map:new Map()},  // объявления публичных комнат
+  chans:new Map(),                            // личные каналы: '@self' и pid собеседников
+  inbox:null,                                 // мой ящик
+  dialogs:[], requests:[], blocked:[],
+  room:null,                                  // активная комната
+  js:null,                                    // сессия входа (экран «Войти по ID»)
+  curDm:null,                                 // pid открытого личного диалога
+  pending:null,                               // параметры только что созданной комнаты
+  dmkCache:new Map(),                         // кэш ключей ECDH
+};
+let previewCache=new Map();                   // id -> {name,count,ts}
+let netUp=false, fileSeq=0, lastTypSent=0;
+let roomTypTimer=null, dmTypTimer=null;
+
+/* ---------------- ХРАНИЛИЩЕ (localStorage в try/catch) ---------------- */
+const store={
+  mem:{}, ok:true, warned:false,
+  get(k,d){ try{ const v=localStorage.getItem('skyle_'+k); return v===null?d:JSON.parse(v); }
+    catch(e){ this.ok=false; return (k in this.mem)?this.mem[k]:d; } },
+  set(k,v){ try{ localStorage.setItem('skyle_'+k,JSON.stringify(v)); this.ok=true; }
+    catch(e){ this.ok=false; this.mem[k]=v; this.warn(); } },
+  del(k){ try{ localStorage.removeItem('skyle_'+k); }catch(e){ delete this.mem[k]; } },
+  warn(){ if(!this.warned){ this.warned=true; toast('localStorage недоступен — данные не сохранятся между запусками'); } }
+};
+
+/* ---------------- УТИЛИТЫ ---------------- */
+const $=id=>document.getElementById(id);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sfxOf=pid=>String(pid||'').replace('-','').slice(-3); // суффикс из 3 символов ID
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,10); }
+function fmtTime(ts){ try{ return new Date(ts).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}); }catch(e){ return '--:--'; } }
+const nowTime=()=>fmtTime(Date.now());
+function fmtDate(ts){ try{ return new Date(ts).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'}); }catch(e){ return ''; } }
+function fmtSize(n){ n=Number(n)||0; if(n<1024)return n+' Б'; if(n<1048576)return (n/1024).toFixed(1)+' КБ'; return (n/1048576).toFixed(1)+' МБ'; }
+function catBytes(a,b){ const o=new Uint8Array(a.length+b.length); o.set(a); o.set(b,a.length); return o; }
+/* случайный ID XXX-XXX из алфавита без похожих символов */
+function randId(n){ const a=ID_ALPHABET,out=[]; const buf=new Uint32Array(n*2); crypto.getRandomValues(buf); let i=0;
+  while(out.length<n){ if(i>=buf.length){ crypto.getRandomValues(buf); i=0; } out.push(a[buf[i++]%a.length]); }
+  return out.slice(0,3).join('')+'-'+out.slice(3).join(''); }
+const genId=()=>randId(6);
+/* нормализация ввода ID:.toUpperCase, фильтр алфавита, вставка дефиса */
+function fmtId(s){ s=String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'').split('').filter(c=>ID_ALPHABET.includes(c)).slice(0,6).join('');
+  return s.length>3?s.slice(0,3)+'-'+s.slice(3):s; }
+const validId=s=>!!s&&s.length===7&&s[3]==='-'&&s.replace('-','').split('').every(c=>ID_ALPHABET.includes(c));
+const validNick=s=>typeof s==='string'&&s.trim().length>=2&&s.trim().length<=20;
+/* очистка имени файла от путей и управляющих символов */
+function cleanName(n){ let s=String(n==null?'file':n).split(/[\\/]+/).pop();
+  s=s.replace(/[\u0000-\u001f\u007f"<>|:*?]/g,'').trim(); if(s.length>80)s=s.slice(-80); return s||'file'; }
+function peerCount(room){ try{ const p=room.getPeers(); return Array.isArray(p)?p.length:Object.keys(p||{}).length; }catch(e){ return 0; } }
+/* надёжный монитор участников: не полагаемся только на onPeerJoin/Leave */
+function watchPeers(room,onJoin,onLeave){
+  const known=new Set();
+  const ids=()=>{ try{ const p=room.getPeers(); return Array.isArray(p)?p:Object.keys(p||{}); }catch(e){ return []; } };
+  const scan=()=>{ let cur=[]; try{ cur=ids(); }catch(e){ return; }
+    for(const id of cur) if(!known.has(id)){ known.add(id); try{onJoin(id)}catch(e){} }
+    for(const id of [...known]) if(!cur.includes(id)){ known.delete(id); try{onLeave(id)}catch(e){} } };
+  scan(); const iv=setInterval(scan,500);
+  return { stop(){ clearInterval(iv); } };
+}
+
+/* Совместимость версий Trystero: старые (до 0.22) возвращают массив
+   [send, get, onProgress], новые — объект {send, onMessage, onReceiveProgress}.
+   mkAct приводит оба вида к единому интерфейсу {send, onMessage}. */
+function mkAct(room,name){
+  const quiet=p=>{ if(p&&typeof p.catch==='function') p.catch(()=>{}); }; /* ранние посылки до открытия канала — глушим отказы */
+  const a=room.makeAction(name);
+  if(Array.isArray(a)){
+    return { send:(d,t)=>{ try{ quiet(t==null?a[0](d):a[0](d,t)); }catch(e){} },
+             onMessage:cb=>a[1]((d,p)=>cb(d,p)) };
+  }
+  return { send:(d,t)=>{ try{ quiet(t==null?a.send(d):a.send(d,{target:t})); }catch(e){} },
+           onMessage:cb=>{ a.onMessage=(d,m)=>cb(d,(m&&m.peerId!==undefined)?m.peerId:m); } };
+}
+
+/* ---------------- ТЕМА ---------------- */
+function applyTheme(){
+  let t=store.get('theme','auto');
+  if(t!=='light'&&t!=='dark') t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  document.documentElement.dataset.theme=t;
+  const mc=document.querySelector('meta[name="theme-color"]');
+  if(mc) mc.content=(t==='dark'?'#000000':'#ffffff');
+}
+function renderThemeUi(){
+  const m=store.get('theme','auto');
+  document.querySelectorAll('.seg-btn').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
+  $('theme-btn').textContent='ТЕМА: '+({light:'СВЕТЛАЯ',dark:'ТЁМНАЯ',auto:'АВТО'}[m]||'АВТО');
+}
+function setThemeMode(m){ store.set('theme',m); applyTheme(); renderThemeUi(); }
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{
+  if(store.get('theme','auto')==='auto') applyTheme();
+});
+
+/* ---------------- ЗВУК (WebAudio) ---------------- */
+let audioCtx=null;
+function beep(){
+  try{
+    if(!store.get('sound',true)) return;
+    audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended') audioCtx.resume();
+    const t=audioCtx.currentTime, o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type='square'; o.frequency.value=880;
+    g.gain.setValueAtTime(0.05,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.15);
+    o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+0.16);
+  }catch(e){}
+}
+
+/* ---------------- ТОСТЫ И МОДАЛКИ ---------------- */
+function toast(text,ms){
+  const d=document.createElement('div'); d.className='toast'; d.textContent=text;
+  $('toasts').append(d);
+  setTimeout(()=>{ d.style.opacity='0'; d.style.transform='translateY(-8px)'; setTimeout(()=>d.remove(),220); },ms||3200);
+}
+/* универсальная модалка: возвращает значение нажатой кнопки */
+function modalBox(text,buttons){
+  return new Promise(res=>{
+    const w=document.createElement('div'); w.className='modal';
+    const box=document.createElement('div'); box.className='modal-box';
+    const tx=document.createElement('div'); tx.className='modal-text'; tx.textContent=text;
+    const br=document.createElement('div'); br.className='modal-btns';
+    buttons.forEach(b=>{
+      const el=document.createElement('button');
+      el.className='btn'+(b.primary?' btn-primary':''); el.textContent=b.l;
+      el.onclick=()=>{ w.remove(); res(b.v); };
+      br.append(el);
+    });
+    box.append(tx,br); w.append(box); document.body.append(w);
+    w.addEventListener('click',e=>{ if(e.target===w){ w.remove(); res(undefined); } });
   });
+}
+function confirmBox(text,okLabel){ return modalBox(text,[{l:'ОТМЕНА',v:false},{l:okLabel||'ПОДТВЕРДИТЬ',v:true,primary:true}]); }
+
+/* ---------------- БУФЕР ОБМЕНА ---------------- */
+async function copyText(t){
+  try{ await navigator.clipboard.writeText(t); toast('Скопировано: '+t); return; }catch(e){}
+  try{
+    const ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('Скопировано: '+t);
+  }catch(e){ toast('Не удалось скопировать'); }
+}
+
+/* ---------------- КРИПТОГРАФИЯ ---------------- */
+/* Ключ комнаты: PBKDF2(SHA-256, 200000) из пароля, соль — ID комнаты */
+async function deriveRoomKey(roomId,password){
+  const base=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey(
+    {name:'PBKDF2',salt:enc.encode(roomId),iterations:PBKDF2_ITER,hash:'SHA-256'},
+    base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+/* AES-GCM: результат = [12-байтный IV || шифртекст], у каждого сообщения/чанка свой IV */
+async function aesEnc(key,plain){
+  const data=(plain instanceof Uint8Array)?plain:enc.encode(plain);
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,data));
+  return catBytes(iv,ct);
+}
+async function aesDec(key,packed){
+  const iv=packed.slice(0,12), ct=packed.slice(12);
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,ct);
+  return new Uint8Array(pt);
+}
+async function aesDecText(key,packed){ return dec.decode(await aesDec(key,packed)); }
+/* пара ключей ECDH P-256 (хранится в localStorage, генерируется один раз) */
+async function ensureKeys(regen){
+  if(!regen){ const kp=store.get('keys',null); if(kp&&kp.priv&&kp.pub) return kp; }
+  const pair=await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveKey']);
+  const kp={ priv:await crypto.subtle.exportKey('jwk',pair.privateKey),
+             pub:await crypto.subtle.exportKey('jwk',pair.publicKey) };
+  store.set('keys',kp); return kp;
+}
+/* ключ личного диалога: ECDH(мой приватный, публичный собеседника) -> AES-GCM 256 */
+async function deriveDmKey(jwk){
+  if(!jwk||!S.privJwk) return null;
+  const ck=(jwk.x||'')+':'+(jwk.y||'');
+  if(S.dmkCache.has(ck)) return S.dmkCache.get(ck);
+  const pub=await crypto.subtle.importKey('jwk',jwk,{name:'ECDH',namedCurve:'P-256'},false,[]);
+  const priv=await crypto.subtle.importKey('jwk',S.privJwk,{name:'ECDH',namedCurve:'P-256'},false,['deriveKey']);
+  const key=await crypto.subtle.deriveKey({name:'ECDH',public:pub},priv,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+  S.dmkCache.set(ck,key); return key;
+}
+/* запечатывание JSON-полезной нагрузки для личного канала */
+async function seal(key,obj){ const pack=await aesEnc(key,JSON.stringify(obj)); return {i:b64(pack.slice(0,12)),c:b64(pack.slice(12))}; }
+async function unseal(key,p){ if(!p||!p.i||!p.c) throw new Error('bad payload'); return JSON.parse(dec.decode(await aesDec(key,catBytes(unb64(p.i),unb64(p.c))))); }
+function b64(u){ let s=''; for(let i=0;i<u.length;i+=8192) s+=String.fromCharCode.apply(null,u.subarray(i,i+8192)); return btoa(s); }
+function unb64(s){ const bin=atob(s),u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i); return u; }
+/* отпечаток ключа: первые 8 hex-символов SHA-256 от пары публичных ключей */
+async function fingerprint(a,b){
+  if(!a||!b) return null;
+  const ka=(a.x||'')+(a.y||''), kb=(b.x||'')+(b.y||'');
+  const [p,q]=ka<kb?[ka,kb]:[kb,ka];
+  const h=await crypto.subtle.digest('SHA-256',enc.encode(p+'|'+q));
+  return [...new Uint8Array(h)].slice(0,4).map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+
+/* ---------------- ЧТО НОВОГО? (whatsnew.md уровнем выше, ../whatsnew.md) ---------------- */
+/* Безопасный мини-markdown: сначала esc(), затем разметка; ссылки только http(s) */
+function renderMarkdown(src){
+  const lines=String(src||'').replace(/\r\n?/g,'\n').split('\n').map(esc);
+  let out='',para=[],list=null,code=null;
+  const flushP=()=>{ if(para.length){ out+='<p>'+inline(para.join(' '))+'</p>'; para=[]; } };
+  const flushL=()=>{ if(list){ out+='</'+list+'>'; list=null; } };
+  const inline=t=>t
+    .replace(/`([^`]+)`/g,(m,x)=>'<code>'+x+'</code>')
+    .replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>')
+    .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g,'$1<i>$2</i>')
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,(m,txt,url)=>
+      /^https?:\/\//i.test(url)?'<a href="'+url+'" target="_blank" rel="noopener noreferrer">'+txt+'</a>':m);
+  for(let i=0;i<lines.length;i++){
+    const L=lines[i]; let m;
+    if(code!==null){
+      if(/^```/.test(L)){ out+='<pre>'+code+'</pre>'; code=null; }
+      else code+=(code?'\n':'')+L;
+      continue;
+    }
+    if(/^```/.test(L)){ flushP(); flushL(); code=''; continue; }
+    if(/^\s*$/.test(L)){ flushP(); flushL(); continue; }
+    if((m=L.match(/^(#{1,3})\s+(.*)$/))){ flushP(); flushL(); out+='<h'+m[1].length+'>'+inline(m[2])+'</h'+m[1].length+'>'; continue; }
+    if(/^\s*(-{3,}|\*{3,})\s*$/.test(L)){ flushP(); flushL(); out+='<hr>'; continue; }
+    if((m=L.match(/^\s*[-*+]\s+(.*)$/))){ flushP(); if(list!=='ul'){ flushL(); list='ul'; out+='<ul>'; } out+='<li>'+inline(m[1])+'</li>'; continue; }
+    if((m=L.match(/^\s*\d+[.)]\s+(.*)$/))){ flushP(); if(list!=='ol'){ flushL(); list='ol'; out+='<ol>'; } out+='<li>'+inline(m[1])+'</li>'; continue; }
+    if((m=L.match(/^\s*>\s?(.*)$/))){ flushP(); flushL(); out+='<blockquote>'+inline(m[1])+'</blockquote>'; continue; }
+    para.push(L.trim());
+  }
+  if(code!==null) out+='<pre>'+code+'</pre>';
+  flushP(); flushL();
+  return out;
+}
+async function showWhatsnew(){
+  const w=document.createElement('div'); w.className='modal wn-in';
+  const box=document.createElement('div'); box.className='modal-box';
+  const h=document.createElement('div'); h.className='wn-title'; h.textContent='ЧТО НОВОГО?';
+  const body=document.createElement('div'); body.className='wn-body';
+  const close=()=>{ try{ w.remove(); }catch(e){} };
+  const br=document.createElement('div'); br.className='modal-btns';
+  const btn=document.createElement('button'); btn.className='btn btn-primary'; btn.textContent='ЗАКРЫТЬ';
+  btn.onclick=close; br.append(btn);
+  box.append(h,body,br); w.append(box); document.body.append(w);
+  w.addEventListener('click',e=>{ if(e.target===w) close(); });
+  let text=null;
+  try{
+    const r=await fetch('../whatsnew.md',{cache:'no-cache'});
+    if(r.ok) text=await r.text();
+  }catch(e){}
+  if(document.body.contains(w)){
+    if(text==null){
+      const p=document.createElement('div'); p.className='note';
+      p.textContent='Файл whatsnew.md не найден уровнем выше (../whatsnew.md).';
+      body.append(p);
+    }else{
+      body.innerHTML=renderMarkdown(text);
+    }
+  }
+}
+
+/* ---------------- НАВИГАЦИЯ ЭКРАНОВ ---------------- */
+function showScreen(id,back){
+  const cur=document.querySelector('.screen.active');
+  if(cur&&cur.id===id) return;
+  if(cur) cur.classList.remove('active');
+  const nx=$(id);
+  nx.classList.toggle('back',!!back);
+  void nx.offsetWidth; /* перезапуск анимации въезда */
+  nx.classList.add('active');
+  S.screen=id;
+  if(id==='scr-menu'){ renderRooms(); renderPublic(); renderDms(); if(S.tab==='rooms') previewMyRooms(); }
+  if(id==='scr-profile') renderProfile();
+}
+function fatal(text){ try{ $('err-text').textContent=text; showScreen('scr-error'); }catch(e){ alert(text); } }
+
+/* ---------------- ЗАГРУЗКА TRYSTERO (CDN) ---------------- */
+async function loadTrystero(){
+  try{
+    T.mod=await import('https://esm.run/trystero');
+    T.selfId=T.mod.selfId;
+  }catch(e){
+    fatal('Не удалось загрузить библиотеку Trystero с CDN. Проверьте подключение к интернету и обновите страницу.');
+    throw e;
+  }
+}
+
+/* ---------------- ЛОББИ ПУБЛИЧНЫХ КОМНАТ ---------------- */
+function joinLobby(){
+  if(!T.mod||S.lobby.room) return;
+  const room=T.mod.joinRoom({appId:APP_ID},NS_LOBBY);
+  const act=mkAct(room,'ann');
+  S.lobby.room=room; S.lobby.send=d=>act.send(d);
+  act.onMessage(d=>{ try{
+    if(d&&validId(d.id)){
+      S.lobby.map.set(d.id,{id:d.id,name:String(d.name||'').slice(0,30),n:Math.max(1,d.n|0),ts:Date.now()});
+      if(S.screen==='scr-menu'&&S.tab==='public') renderPublic();
+    }
+  }catch(e){} });
+  /* объявления старше 30 секунд теряют силу — комната пропадает из списка */
+  setInterval(()=>{
+    const now=Date.now(); let ch=false;
+    for(const [k,v] of S.lobby.map) if(now-v.ts>30000){ S.lobby.map.delete(k); ch=true; }
+    if(ch&&S.screen==='scr-menu'&&S.tab==='public') renderPublic();
+  },5000);
+}
+/* комната с включённой галочкой объявляет себя каждые 10 секунд */
+function announceToLobby(){
+  try{
+    if(!S.lobby.send||!S.room||!S.room.public) return;
+    S.lobby.send({id:S.room.id,name:S.room.name,n:S.room.members.size+1});
+  }catch(e){}
+}
+
+/* ---------------- МОИ КОМНАТЫ (localStorage) ---------------- */
+function myRooms(){ const l=store.get('rooms',[]); return Array.isArray(l)?l:[]; }
+function saveRoom(r){
+  const l=myRooms(); const i=l.findIndex(x=>x.id===r.id);
+  if(i>=0) l[i]={...l[i],...r,seen:Date.now()};
+  else l.unshift({id:r.id,name:r.name||'',seen:Date.now()});
+  store.set('rooms',l);
+}
+function forgetRoom(id){
+  store.set('rooms',myRooms().filter(r=>r.id!==id));
+  store.del('pass_'+id); store.del('owner_'+id); store.del('pub_'+id);
+  renderRooms();
+}
+/* фоновый предпросмотр: короткое подключение без пароля, запрос названия */
+function previewRoom(id,timeout){
+  return new Promise(res=>{
+    let done=false, room=null;
+    const fin=v=>{ if(done)return; done=true; try{room&&room.leave()}catch(e){} clearTimeout(tm); res(v); };
+    try{ room=T.mod.joinRoom({appId:APP_ID},nsRoom(id)); }catch(e){ return fin(null); }
+    const act=mkAct(room,'ri');
+    act.onMessage(d=>{ if(d&&d.name) fin({name:String(d.name).slice(0,30),count:Math.max(1,d.count|0),ts:Date.now()}); });
+    const ping=()=>{ try{act.send({})}catch(e){} };
+    watchPeers(room,()=>ping(),()=>{});
+    setTimeout(ping,300); setTimeout(ping,1200);
+    const tm=setTimeout(()=>fin(null),timeout||3000);
+  });
+}
+let previewRunning=false;
+/* предпросмотр списка «Мои комнаты»: раз в 15 секунд, пока меню открыто */
+async function previewMyRooms(){
+  if(previewRunning||!T.mod||S.screen!=='scr-menu'||S.room) return;
+  previewRunning=true;
+  for(const r of myRooms()){
+    if(S.room||S.screen!=='scr-menu') break;
+    if((S.room&&S.room.id===r.id)||(S.js&&S.js.id===r.id)) continue; /* уже подключены */
+    try{ const info=await previewRoom(r.id,2500); if(info) previewCache.set(r.id,info); }catch(e){}
+    renderRooms();
+    await sleep(250);
+  }
+  previewRunning=false;
+}
+setInterval(()=>{ if(S.screen==='scr-menu'&&S.tab==='rooms'&&!S.room) previewMyRooms(); },15000);
+
+function renderRooms(){
+  const wrap=$('rooms-list'); const rooms=myRooms();
+  if(!rooms.length){ wrap.innerHTML='<div class="note" style="padding:10px">КОМНАТ НЕТ. СОЗДАЙТЕ КОМНАТУ ИЛИ ВОЙДИТЕ ПО ID.</div>'; return; }
+  wrap.innerHTML=rooms.map((r,i)=>{
+    const live=(S.room&&S.room.id===r.id);
+    const pc=previewCache.get(r.id);
+    const st=live?('в сети: '+(S.room.members.size+1)):(pc?('в сети: '+pc.count):'пусто');
+    return '<div class="row stag" style="animation-delay:'+Math.min(i,9)*30+'ms">'+
+      '<div class="row-main"><div class="row-t">'+esc(r.name||r.id)+'</div>'+
+      '<div class="row-s muted small">'+esc(r.id)+' · '+st+' · вход: '+fmtDate(r.seen)+'</div></div>'+
+      '<div class="row-btns"><button class="btn btn-mini" data-room="enter:'+esc(r.id)+'">ВОЙТИ</button>'+
+      '<button class="btn btn-mini" data-room="forget:'+esc(r.id)+'">ЗАБЫТЬ</button></div></div>';
+  }).join('');
+}
+function renderPublic(){
+  const el=$('public-list');
+  const items=[...S.lobby.map.values()].sort((a,b)=>b.ts-a.ts);
+  if(!items.length){ el.innerHTML='<button class="empty" id="empty-create">ПОКА НИКОГО НЕТ. СОЗДАЙ ПЕРВУЮ</button>'; return; }
+  el.innerHTML=items.map((r,i)=>
+    '<div class="row stag" style="animation-delay:'+Math.min(i,9)*30+'ms">'+
+    '<div class="row-main"><div class="row-t">'+esc(r.name)+'</div>'+
+    '<div class="row-s muted small">'+esc(r.id)+' · в сети: '+(r.n|0)+'</div></div>'+
+    '<div class="row-btns"><button class="btn btn-mini" data-pub="join:'+esc(r.id)+'">ВОЙТИ</button></div></div>').join('');
+}
+
+/* ---------------- СОЗДАНИЕ КОМНАТЫ ---------------- */
+async function createRoom(){
+  if(!T.mod){ toast('Библиотека ещё загружается, попробуйте через секунду'); return; }
+  const name=$('create-name').value.trim();
+  const pass=$('create-pass').value;
+  if(!name){ toast('Укажите название'); return; }
+  if(name.length>30){ toast('Название: до 30 символов'); return; }
+  if(!pass){ toast('Укажите пароль'); return; }
+  const id=genId();
+  store.set('pub_'+id,$('create-public').checked);   /* показывать в списке */
+  store.set('owner_'+id,1);                          /* этот создатель управляет галочкой */
+  if($('create-remember').checked) store.set('pass_'+id,pass);
+  saveRoom({id,name});
+  S.pending={id,name,pass};
+  $('created-id').textContent=id;
+  showScreen('scr-created');
+}
+/* создатель входит в свою комнату без проверки (он задаёт контрольную строку) */
+async function enterCreatorRoom(p){
+  const room=T.mod.joinRoom({appId:APP_ID},nsRoom(p.id));
+  const acts={ ri:mkAct(room,'ri'), ok:mkAct(room,'ok'), x:mkAct(room,'x'), rb:mkAct(room,'rb') };
+  wireRoomInstance(room,acts);
+  const key=await deriveRoomKey(p.id,p.pass);
+  S.room=mkRoomState({id:p.id,name:p.name,room,acts,key,password:p.pass,owner:true});
+  S.room.okBlob=await aesEnc(key,CTRL_PLAIN);
+  saveRoom({id:p.id,name:p.name});
+  sendMyPresence();
+  renderRoomUi(); showScreen('scr-room'); startAnnounce();
+}
+async function computeOk(){ if(!S.room) return; try{ S.room.okBlob=await aesEnc(S.room.key,CTRL_PLAIN); }catch(e){} }
+
+/* ---------------- ВХОД ПО ID: ПРЕДПРОСМОТР + ПАРОЛЬ ---------------- */
+function openJoin(id){
+  cancelJoin();
+  $('join-id').value=id?fmtId(id):'';
+  $('join-err').classList.add('hidden');
+  $('join-block').classList.add('hidden');
+  $('join-pass').value=''; $('join-remember').checked=false;
+  const rp=id?store.get('pass_'+id,''):'';
+  if(rp){ $('join-pass').value=rp; $('join-remember').checked=true; }
+  showScreen('scr-join');
+  if(id&&validId(fmtId(id))) joinPreview(fmtId(id));
+}
+function joinMsg(t){ const e=$('join-err'); e.textContent=t; e.classList.remove('hidden'); }
+function joinResetUi(){ $('join-err').classList.add('hidden'); $('join-block').classList.add('hidden'); }
+/* режим предпросмотра: запрашиваем название и число участников у пиров */
+function joinPreview(idRaw){
+  if(!T.mod){ toast('Библиотека ещё загружается, попробуйте через секунду'); return; }
+  const id=fmtId(idRaw);
+  if(!validId(id)){ joinMsg('Введите ID в формате XXX-XXX'); return; }
+  cancelJoin(); joinResetUi(); joinMsg('ПОИСК КОМНАТЫ...');
+  const room=T.mod.joinRoom({appId:APP_ID},nsRoom(id));
+  const acts={ ri:mkAct(room,'ri'), ok:mkAct(room,'ok'), x:mkAct(room,'x'), rb:mkAct(room,'rb') };
+  wireRoomInstance(room,acts);
+  S.js={id,room,acts,stage:'preview',info:null,key:null,password:'',okDone:false,watch:null};
+  const ping=()=>{ if(S.js&&S.js.stage==='preview'){ try{acts.ri.send({})}catch(e){} } };
+  S.js.watch=watchPeers(room,()=>ping(),()=>{});
+  setTimeout(ping,350);
+  /* канал данных может открыться позже сигналинга — пингуем, пока не получим ответ */
+  S.js.pingTimer=setInterval(ping,1500);
+  /* 8 секунд без ответа — комнаты нет или она пуста */
+  S.js.infoTimer=setTimeout(()=>{ if(S.js&&S.js.stage==='preview'){ joinErrorScreen('Комната пуста или не существует'); } },8000);
+}
+function joinErrorScreen(t){ const js=S.js; cancelJoin(); $('join-id').value=js?js.id:''; joinMsg(t); }
+function joinInfoGot(d){
+  const js=S.js; if(!js||js.stage!=='preview') return;
+  clearTimeout(js.infoTimer); clearInterval(js.pingTimer);
+  js.stage='password';
+  js.info={name:String(d.name).slice(0,30),count:Math.max(1,d.count|0)};
+  previewCache.set(js.id,{...js.info,ts:Date.now()});
+  $('join-err').classList.add('hidden');
+  $('join-info').textContent='КОМНАТА: '+js.info.name+', '+js.info.count+' В СЕТИ';
+  $('join-block').classList.remove('hidden');
+}
+/* проверка пароля: расшифровываем контрольную строку «skyle-ok» от участников */
+async function joinRoom(){
+  const js=S.js;
+  if(!js||js.stage!=='password') return;
+  const pass=$('join-pass').value;
+  if(!pass){ joinMsg('Введите пароль'); return; }
+  js.stage='checking'; js.password=pass;
+  js.remember=$('join-remember').checked;
+  joinMsg('ПРОВЕРКА ПАРОЛЯ...');
+  js.key=await deriveRoomKey(js.id,pass);
+  js.okDone=false;
+  try{ js.acts.ok.send({}); }catch(e){}
+  /* повторяем запрос, пока не получим контрольную строку (канал мог открыться позже) */
+  js.okPing=setInterval(()=>{ if(S.js===js&&js.stage==='checking'&&!js.okDone){ try{ js.acts.ok.send({}); }catch(e){} } },2000);
+  js.okTimer=setTimeout(()=>{
+    if(S.js===js&&js.stage==='checking'&&!js.okDone){
+      joinErrorScreen('Не удалось проверить пароль: комната могла опустеть');
+    }
+  },8000);
+}
+async function joinOkGot(pack){
+  const js=S.js;
+  if(!js||js.stage!=='checking'||js.okDone) return;
+  try{
+    const pt=await aesDecText(js.key,pack);
+    if(pt!==CTRL_PLAIN) throw new Error('mismatch');
+    js.okDone=true; clearTimeout(js.okTimer); clearInterval(js.okPing);
+    joinMsg('ВХОД...');
+    finishJoin();
+  }catch(e){
+    js.okDone=true; clearTimeout(js.okTimer); clearInterval(js.okPing);
+    joinErrorScreen('Неверный пароль');
+  }
+}
+/* успешная проверка: сессия входа становится активной комнатой */
+function finishJoin(){
+  const js=S.js; if(!js) return;
+  S.js=null;
+  S.room=mkRoomState({id:js.id,name:(js.info&&js.info.name)||js.id,room:js.room,acts:js.acts,key:js.key,password:js.password,owner:!!store.get('owner_'+js.id,false)});
+  S.room.okBlob=null; computeOk();
+  saveRoom({id:js.id,name:S.room.name});
+  if(js.remember) store.set('pass_'+js.id,js.password);
+  sendMyPresence();
+  renderRoomUi(); showScreen('scr-room'); startAnnounce();
+  toast('Вы вошли: '+(S.room.name||S.room.id));
+}
+function cancelJoin(){
+  const js=S.js; if(!js) return;
+  try{ js.watch&&js.watch.stop(); }catch(e){}
+  clearTimeout(js.infoTimer); clearTimeout(js.okTimer);
+  clearInterval(js.pingTimer); clearInterval(js.okPing);
+  try{ js.room.leave(); }catch(e){}
+  S.js=null;
+}
+
+/* ---------------- СОСТОЯНИЕ КОМНАТЫ ---------------- */
+function mkRoomState(o){
+  return { id:o.id, name:o.name, room:o.room, acts:o.acts, key:o.key, password:o.password||'',
+    members:new Map(), log:[], files:new Map(), owner:!!o.owner,
+    public:store.get('pub_'+o.id,false), okBlob:null, annTimer:null, watch:null };
+}
+/* единая регистрация обработчиков на экземпляре комнаты (жизненный цикл: предпросмотр -> вход -> чат) */
+function wireRoomInstance(room,acts){
+  wireRoomDispatchers(acts);
+  const w=watchPeers(room,
+    ()=>{ if(S.js&&S.js.stage==='preview'){ try{acts.ri.send({})}catch(e){} } },
+    tpid=>onRoomPeerLeave(tpid));
+  if(S.js) S.js.watch=w; else if(S.room&&S.room.room===room) S.room.watch=w;
+}
+function wireRoomDispatchers(acts){
+  /* запрос/ответ названия комнаты (открыт всем знающим ID) */
+  acts.ri.onMessage((d,tpid)=>{
+    if(d&&d.name){ if(S.js&&S.js.stage==='preview') joinInfoGot(d); }
+    else if(S.room&&S.room.okBlob){ try{ acts.ri.send({name:S.room.name,count:S.room.members.size+1},tpid); }catch(e){} }
+  });
+  /* запрос/ответ контрольной строки пароля.
+     Запрос — пустой объект {}; ответ — бинарный пакет AES (IV||шифртекст).
+     Trystero доставляет бинарные данные как ArrayBuffer/Uint8Array без
+     текстовых полей, поэтому различаем их по ТИПУ, а не по наличию свойства. */
+  acts.ok.onMessage((d,tpid)=>{
+    if(d instanceof ArrayBuffer||(d&&typeof d==='object'&&ArrayBuffer.isView(d))){
+      if(S.js&&S.js.stage==='checking') joinOkGot(d);
+    }
+    else if(d&&typeof d==='object'&&S.room&&S.room.okBlob){
+      acts.ok.send(S.room.okBlob,tpid);
+    }
+  });
+  /* зашифрованные JSON-конверты (presence, сообщения, метаданные файлов) */
+  acts.x.onMessage(async (pack,tpid)=>{
+    if(!S.room) return;
+    try{ const p=JSON.parse(dec.decode(await aesDec(S.room.key,pack))); onRoomMsg(p,tpid); }catch(e){}
+  });
+  /* зашифрованные чанки файлов */
+  acts.rb.onMessage(async (pack,tpid)=>{
+    if(!S.room) return;
+    try{
+      const pt=await aesDec(S.room.key,pack);
+      const dv=new DataView(pt.buffer,pt.byteOffset);
+      const fid=dv.getUint32(0), idx=dv.getUint32(4);
+      receiveFile('room',fid>>>0,idx>>>0,pt.subarray(8),
+        ()=>encSend(acts.x,S.room.key,{t:'fack',id:fid,i:idx},tpid));
+    }catch(e){}
+  });
+}
+/* зашифрованная отправка JSON-конверта (всем или конкретному пиру) */
+async function encSend(act,key,obj,target){
+  try{ const pack=await aesEnc(key,JSON.stringify(obj)); act.send(pack,target); }catch(e){}
+}
+function sendMyPresence(){
+  if(!S.room) return;
+  encSend(S.room.acts.x,S.room.key,{t:'pres',nick:S.nick,pid:S.pid,pub:S.pubJwk});
+}
+function startAnnounce(){
+  if(!S.room) return;
+  if(S.room.annTimer){ clearInterval(S.room.annTimer); S.room.annTimer=null; }
+  if(!S.room.public) return;
+  announceToLobby();
+  S.room.annTimer=setInterval(announceToLobby,10000);
+}
+function leaveRoom(){
+  const r=S.room; if(!r) return;
+  try{ r.watch&&r.watch.stop(); }catch(e){}
+  try{ r.room.leave(); }catch(e){}
+  if(r.annTimer) clearInterval(r.annTimer);
+  /* освобождаем память: blob-URL файлов этой комнаты */
+  for(const rec of r.files.values()){ if(rec.url){ try{URL.revokeObjectURL(rec.url)}catch(e){} } }
+  S.room=null; previewCache=new Map(); renderRooms();
+}
+function collides(nick,pid){
+  if(!S.room) return false;
+  let n=0;
+  for(const m of S.room.members.values()) if(m.nick===nick&&m.pid!==pid) n++;
+  if(S.nick===nick&&S.pid!==pid) n++;
+  return n>0;
+}
+function nickDisp(nick,pid){ return collides(nick,pid)?nick+'#'+sfxOf(pid):nick; }
+
+/* ---------------- ОБРАБОТКА ДАННЫХ КОМНАТЫ ---------------- */
+async function onRoomMsg(p,tpid){
+  const r=S.room; if(!p||typeof p.t!=='string') return;
+  switch(p.t){
+    case 'pres':{
+      if(!p.pid||!p.nick||!p.pub||p.pid===S.pid) break;
+      const known=r.members.get(tpid);
+      if(!known){
+        r.members.set(tpid,{nick:String(p.nick).slice(0,20),pid:String(p.pid).slice(0,8),pub:p.pub});
+        r.log.push({kind:'sys',text:nickDisp(String(p.nick).slice(0,20),p.pid)+' вошёл'});
+        encSend(r.acts.x,r.key,{t:'pres',nick:S.nick,pid:S.pid,pub:S.pubJwk},tpid);
+        renderRoomLog(); renderMembers(); announceToLobby();
+      }else if(known.nick!==p.nick){
+        known.nick=String(p.nick).slice(0,20); renderMembers();
+      }
+      break;
+    }
+    case 'msg':{
+      if(typeof p.text!=='string'||!p.text) break;
+      let m=r.members.get(tpid);
+      if(!m){ m={nick:String(p.nick||'?').slice(0,20),pid:String(p.pid||'???????').slice(0,8),pub:null}; r.members.set(tpid,m); }
+      const text=p.text.slice(0,4000);
+      r.log.push({kind:'msg',self:false,nick:m.nick,pid:m.pid,time:nowTime(),text,showSfx:collides(m.nick,m.pid)});
+      renderRoomLog(); beep();
+      break;
+    }
+    case 'typ':{
+      const m=r.members.get(tpid); if(m) showRoomTyping(m.nick);
+      break;
+    }
+    case 'fmeta': onRoomFmeta(p,tpid); break;
+    case 'fack':{
+      const rec=r.files.get(p.id>>>0);
+      if(rec&&rec.role==='send'){
+        const i=p.i|0;
+        if(!rec.acks.has(i)){ rec.acks.add(i); rec.window.delete(i); rec.last=Date.now(); pumpSend(rec); }
+      }
+      break;
+    }
+    case 'fcancel':{
+      const rec=r.files.get(p.id>>>0);
+      if(rec&&rec.active) fileFail(rec,'Отменено');
+      break;
+    }
+  }
+}
+function onRoomPeerLeave(tpid){
+  const r=S.room; if(!r) return;
+  const m=r.members.get(tpid); if(!m) return;
+  r.members.delete(tpid);
+  r.log.push({kind:'sys',text:m.nick+'#'+sfxOf(m.pid)+' вышел'});
+  renderRoomLog(); renderMembers(); announceToLobby();
+}
+function onRoomFmeta(p,tpid){
+  const r=S.room;
+  if(!p||!Number.isInteger(p.id)) return;
+  if(typeof p.size!=='number'||p.size<1||p.size>ROOM_LIMIT) return;
+  const chunks=p.chunks|0;
+  if(chunks<1||chunks>5000) return;
+  if(r.files.has(p.id>>>0)) return;
+  const rec={ domId:'f'+(++fileSeq), fid:p.id>>>0, role:'recv', name:cleanName(p.name),
+    size:p.size, mime:String(p.mime||''), chunks, status:'Получение', pct:0,
+    parts:new Array(chunks), got:0, url:null, imgUrl:null, last:Date.now(), active:true, ctx:{type:'room'} };
+  r.files.set(rec.fid,rec);
+  const m=r.members.get(tpid);
+  r.log.push({kind:'file',self:false,nick:m?m.nick:'?',pid:m?m.pid:'',time:nowTime(),rec});
+  renderRoomLog();
+}
+
+/* ---------------- ОТПРАВКА СООБЩЕНИЙ И «ПЕЧАТАЕТ...» ---------------- */
+function sendMessage(){
+  const r=S.room; if(!r) return;
+  const ta=$('room-input'); const text=ta.value.trim();
+  if(!text) return;
+  if(text.length>4000){ toast('Сообщение слишком длинное'); return; }
+  ta.value=''; autoGrow(ta);
+  r.log.push({kind:'msg',self:true,nick:S.nick,pid:S.pid,time:nowTime(),text,showSfx:collides(S.nick,S.pid)});
+  renderRoomLog();
+  encSend(r.acts.x,r.key,{t:'msg',id:uid(),text,nick:S.nick,pid:S.pid,ts:Date.now()});
+}
+function roomTypingPing(){
+  if(!S.room) return;
+  const n=Date.now();
+  if(n-lastTypSent>1800){ lastTypSent=n; encSend(S.room.acts.x,S.room.key,{t:'typ'}); }
+}
+function showRoomTyping(nick){
+  if(!S.room) return;
+  $('room-typing-n').textContent=nick+' ПЕЧАТАЕТ...';
+  $('room-typing').classList.remove('hidden');
+  clearTimeout(roomTypTimer);
+  roomTypTimer=setTimeout(()=>$('room-typing').classList.add('hidden'),3000);
+}
+
+/* ---------------- ФАЙЛЫ (отправка/приём) ---------------- */
+function isPreviewable(rec){
+  if(!rec||rec.size>IMG_LIMIT) return false;
+  if(/\.svg$|\.html?$/i.test(rec.name)) return false;          /* SVG и HTML инлайн не показываем */
+  return IMG_MIME.test(rec.mime)||(!rec.mime&&IMG_EXT.test(rec.name));
+}
+function filesOf(scope){ return scope==='room'?(S.room&&S.room.files):((findDialog(scope)||{}).files); }
+function scopeElOf(rec){ return rec&&rec.ctx&&rec.ctx.type==='dm'?$('dm-msgs'):$('room-msgs'); }
+/* универсальная отправка файла: комната (всем) или личный чат */
+async function sendFile(file,ctx){
+  try{
+    if(!file) return;
+    const isRoom=ctx.type==='room';
+    if(!isRoom&&!T.mod){ toast('Библиотека ещё загружается'); return; }
+    const d=isRoom?null:ctx.dialog;
+    if(!isRoom){
+      if(!d){ toast('Нет диалога'); return; }
+      if(!d.pub){ toast('Собеседник ещё не подтвердил связь: сначала отправьте сообщение'); return; }
+    }
+    const limit=isRoom?ROOM_LIMIT:DM_LIMIT;
+    if(file.size>limit){ toast(isRoom?'Файл слишком большой. Максимум для комнаты — 25 МБ':'Файл слишком большой. Максимум в личном чате — 100 МБ'); return; }
+    if(file.size<1){ toast('Пустые файлы не отправляются'); return; }
+    const key=isRoom?(S.room&&S.room.key):await deriveDmKey(d.pub);
+    if(!key){ toast('Нет ключа шифрования'); return; }
+    if(isRoom&&!S.room){ toast('Вы не в комнате'); return; }
+    const fid=new Uint32Array(1); crypto.getRandomValues(fid);
+    const rec={ domId:'f'+(++fileSeq), fid:fid[0], role:'send', name:cleanName(file.name),
+      size:file.size, mime:file.type||'', chunks:Math.ceil(file.size/FILE_CHUNK),
+      status:'Отправка', pct:0, sent:0, acks:new Set(), window:new Set(), next:0,
+      buf:null, url:null, imgUrl:null, last:Date.now(), active:true, ctx:{type:isRoom?'room':'dm',pid:isRoom?null:d.pid} };
+    const entry={kind:'file',self:true,nick:S.nick,pid:S.pid,time:nowTime(),rec};
+    if(isRoom){ S.room.files.set(rec.fid,rec); S.room.log.push(entry); renderRoomLog(); }
+    else{ d.files.set(rec.fid,rec); d.log.push(entry); renderDmLog(); }
+    rec.buf=new Uint8Array(await file.arrayBuffer());
+    const meta={t:'fmeta',id:rec.fid,name:rec.name,size:rec.size,mime:rec.mime,chunks:rec.chunks};
+    if(isRoom) encSend(S.room.acts.x,key,meta);
+    else{ const ok=await dmSendEnc(d.pid,meta); if(!ok){ fileFail(rec,'Отправка прервана'); return; } }
+    pumpSend(rec);
+  }catch(e){ toast('Не удалось отправить файл'); }
+}
+/* подкачка чанков в окне подтверждений (чтобы не переполнить DataChannel) */
+async function pumpSend(rec){
+  if(!rec||!rec.active||rec.role!=='send') return;
+  const isRoom=rec.ctx.type==='room';
+  let key=null;
+  try{ key=isRoom?(S.room&&S.room.key):await deriveDmKey((findDialog(rec.ctx.pid)||{}).pub); }catch(e){}
+  if(!key){ fileFail(rec,'Отправка прервана'); return; }
+  while(rec.active&&rec.next<rec.chunks&&rec.window.size<FILE_WINDOW){
+    const i=rec.next++; rec.window.add(i);
+    const off=i*FILE_CHUNK, end=Math.min(off+FILE_CHUNK,rec.size);
+    try{
+      if(isRoom){
+        const head=new Uint8Array(8); const dv=new DataView(head.buffer);
+        dv.setUint32(0,rec.fid); dv.setUint32(4,i);
+        const pack=await aesEnc(key,catBytes(head,rec.buf.subarray(off,end)));
+        S.room.acts.rb.send(pack);
+      }else{
+        const pack=await aesEnc(key,rec.buf.subarray(off,end));
+        chanBin(rec.ctx.pid,rec.fid,i,pack);
+      }
+    }catch(e){ fileFail(rec,'Отправка прервана'); return; }
+    rec.sent=Math.max(rec.sent,end); rec.pct=Math.round(100*rec.sent/rec.size); rec.last=Date.now();
+    updFileProgress(rec);
+  }
+  if(rec.active&&rec.next>=rec.chunks&&rec.window.size===0){
+    rec.active=false; rec.status='Отправлено'; rec.pct=100; rec.buf=null;
+    updFileUI(scopeElOf(rec),rec);
+  }
+}
+/* приём чанка: собираем файл в памяти, подтверждаем получение */
+async function receiveFile(scope,fid,idx,chunk,ackFn){
+  const files=filesOf(scope); const rec=files&&files.get(fid>>>0);
+  if(!rec||!rec.active||!rec.parts) return;
+  if(idx<0||idx>=rec.chunks||rec.parts[idx]) return;
+  rec.parts[idx]=chunk; rec.got++; rec.last=Date.now();
+  rec.pct=Math.round(100*rec.got/rec.chunks);
+  try{ ackFn&&ackFn(); }catch(e){}
+  if(rec.got>=rec.chunks) finishReceive(rec);
+  else updFileProgress(rec);
+}
+function finishReceive(rec){
+  rec.active=false; rec.pct=100;
+  try{
+    const blob=new Blob(rec.parts.filter(Boolean),{type:rec.mime||'application/octet-stream'});
+    rec.url=URL.createObjectURL(blob);
+    rec.status='Готово';
+    if(isPreviewable(rec)) rec.imgUrl=rec.url;   /* картинка — превью прямо в чате */
+  }catch(e){ rec.status='Ошибка сборки'; }
+  const el=scopeElOf(rec); rec.parts=null;
+  updFileUI(el,rec);
+}
+function fileFail(rec,text){
+  if(!rec) return;
+  rec.active=false; rec.status=text;
+  if(rec.role==='send') rec.buf=null; else rec.parts=null;
+  updFileUI(scopeElOf(rec),rec);
+}
+function cancelFile(rec){
+  if(!rec||!rec.active) return;
+  try{
+    if(rec.ctx.type==='room'){ encSend(S.room.acts.x,S.room.key,{t:'fcancel',id:rec.fid}); }
+    else{ dmSendEnc(rec.ctx.pid,{t:'fcancel',id:rec.fid}); }
+  }catch(e){}
+  fileFail(rec,'Отменено');
+}
+/* скачивание по кнопке: предупреждение для исполняемых типов */
+function downloadRec(rec){
+  if(!rec||!rec.url) return;
+  if(EXE_EXT.test(rec.name)&&!rec.warnOk){
+    confirmBox('Файл «'+rec.name+'» похож на исполняемый и может быть опасным. Всё равно скачать?','СКАЧАТЬ')
+      .then(ok=>{ if(ok){ rec.warnOk=true; downloadRec(rec); } });
+    return;
+  }
+  const a=document.createElement('a'); a.href=rec.url; a.download=rec.name;
+  document.body.append(a); a.click(); a.remove();
+}
+/* контроль зависших передач */
+setInterval(()=>{
+  const now=Date.now();
+  const scan=files=>{ if(!files) return;
+    for(const rec of files.values())
+      if(rec.active&&now-rec.last>12000) fileFail(rec,rec.role==='send'?'Отправка прервана':'Загрузка прервана'); };
+  if(S.room) scan(S.room.files);
+  for(const d of S.dialogs) scan(d.files);
+},3000);
+
+/* ---------------- ОТРИСОВКА ЧАТА КОМНАТЫ ---------------- */
+function renderRoomUi(){
+  const r=S.room; if(!r) return;
+  $('room-name').textContent=(r.name||r.id).toUpperCase();
+  $('room-public-row').classList.toggle('hidden',!r.owner);
+  $('room-public').checked=r.public;
+  renderMembers(); renderRoomLog();
+}
+function msgHtml(m){
+  if(m.kind==='sys') return '<div class="msg sys">— '+esc(m.text)+' —</div>';
+  const who=esc(m.nick)+(m.showSfx?'<span class="sfx">#'+esc(sfxOf(m.pid||''))+'</span>':'');
+  let inner;
+  if(m.kind==='file') inner=fileNodeHtml(m.rec);
+  else inner=esc(m.text);
+  return '<div class="msg'+(m.self?' self':'')+'"><span class="mtime">['+esc(m.time)+']</span> <b>'+who+':</b> '+inner+'</div>';
+}
+function fileNodeHtml(rec){
+  let act='';
+  if(rec.active) act='<button class="btn btn-mini" data-cancel="'+rec.domId+'">ОТМЕНА</button>';
+  else if(rec.role==='recv'&&rec.url) act='<button class="btn btn-mini" data-dl="'+rec.domId+'">СКАЧАТЬ</button>';
+  return '<span class="file" data-f="'+rec.domId+'">'+
+    '<span class="f-head">'+
+      '<svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>'+
+      '<span class="f-name">'+esc(rec.name)+'</span>'+
+      '<span class="muted small">'+fmtSize(rec.size)+'</span>'+
+    '</span>'+
+    '<span class="bar"><span class="fill" style="width:'+(rec.pct|0)+'%"></span></span>'+
+    '<span class="f-foot"><span class="f-status small">'+esc(rec.status)+(rec.active?' '+(rec.pct|0)+'%':'')+'</span>'+act+'</span>'+
+    (rec.imgUrl?'<img class="f-img" src="'+rec.imgUrl+'" alt="превью">':'')+
+  '</span>';
+}
+function renderRoomLog(){
+  const r=S.room; if(!r) return;
+  const box=$('room-msgs');
+  const stick=box.scrollHeight-box.scrollTop-box.clientHeight<90;
+  box.innerHTML=r.log.map(msgHtml).join('');
+  bindFileButtonsOnce(box,'room');
+  if(stick) box.scrollTo({top:box.scrollHeight,behavior:'smooth'});
+}
+function updFileProgress(rec){
+  const el=scopeElOf(rec); if(!el) return;
+  const node=el.querySelector('[data-f="'+rec.domId+'"]'); if(!node) return;
+  const fill=node.querySelector('.fill'); if(fill) fill.style.width=(rec.pct|0)+'%';
+  const st=node.querySelector('.f-status'); if(st) st.textContent=rec.status+' '+(rec.pct|0)+'%';
+}
+function updFileUI(scopeEl,rec){
+  if(!scopeEl) return;
+  const node=scopeEl.querySelector('[data-f="'+rec.domId+'"]');
+  if(node){ const tpl=document.createElement('template'); tpl.innerHTML=fileNodeHtml(rec).trim();
+    node.replaceWith(tpl.content.firstChild); }
+}
+const fileBindDone=new WeakSet();
+function bindFileButtonsOnce(box,scope){
+  if(fileBindDone.has(box)) return;
+  fileBindDone.add(box);
+  box.addEventListener('click',e=>{
+    const dl=e.target.closest('[data-dl]');
+    if(dl){ const rec=findRecByDom(scope,dl.dataset.dl); if(rec) downloadRec(rec); return; }
+    const cn=e.target.closest('[data-cancel]');
+    if(cn){ const rec=findRecByDom(scope,cn.dataset.cancel); if(rec) cancelFile(rec); }
+  });
+}
+function findRecByDom(scope,dom){
+  const files=filesOf(scope); if(!files) return null;
+  for(const r of files.values()) if(r.domId===dom) return r;
+  return null;
+}
+function renderMembers(){
+  const r=S.room; if(!r) return;
+  const list=[...r.members.values()];
+  $('room-count').textContent='('+(list.length+1)+')';
+  const nicks={};
+  list.forEach(m=>nicks[m.nick]=(nicks[m.nick]||0)+1);
+  nicks[S.nick]=(nicks[S.nick]||0)+1;
+  let html='<div class="mem"><span class="sq on"></span><span class="mem-nick">'+esc(S.nick)+'</span>'+
+    '<span class="sfx muted">#'+esc(sfxOf(S.pid))+'</span><span class="muted small">(вы)</span></div>';
+  list.forEach((m,i)=>{
+    html+='<div class="mem stag" style="animation-delay:'+Math.min(i,9)*30+'ms" data-pid="'+esc(m.pid)+'">'+
+      '<span class="sq on"></span><span class="mem-nick">'+esc(m.nick)+'</span>'+
+      '<span class="sfx muted">#'+esc(sfxOf(m.pid))+'</span></div>';
+  });
+  $('room-members-list').innerHTML=html;
+  $('room-sub').textContent=r.id+' · '+(list.length+1)+' В СЕТИ'+(r.public?' · В СПИСКЕ':'');
+}
+function memberModal(m){
+  modalBox(m.nick+'#'+sfxOf(m.pid),[
+    {l:'НАПИСАТЬ',v:'dm',primary:true},
+    {l:'ЗАБЛОКИРОВАТЬ',v:'block'},
+    {l:'ОТМЕНА',v:null}
+  ]).then(v=>{
+    if(v==='dm') openDm(m.pid,m.nick,m.pub);
+    if(v==='block') blockUser(m.pid,m.nick);
+  });
+}
+
+/* ---------------- ЛИЧНЫЕ СООБЩЕНИЯ ---------------- */
+function saveDialogs(){
+  try{ store.set('dialogs',S.dialogs.map(d=>({pid:d.pid,nick:d.nick,pub:d.pub,unread:d.unread||0,ts:d.ts||Date.now()}))); }catch(e){}
+}
+function loadDialogs(){
+  const l=store.get('dialogs',[]); if(!Array.isArray(l)) return;
+  S.dialogs=l.map(x=>({pid:x.pid,nick:x.nick||x.pid,pub:x.pub||null,unread:x.unread||0,ts:x.ts||Date.now(),
+    log:[],files:new Map(),outbox:[],helloSent:false,online:null}));
+}
+function saveRequests(){ store.set('requests',S.requests); }
+function saveBlocked(){ store.set('blocked',S.blocked); }
+const findDialog=pid=>S.dialogs.find(d=>d.pid===pid);
+const curDialog=()=>S.curDm&&findDialog(S.curDm);
+const isBlocked=pid=>S.blocked.some(b=>b.pid===pid);
+function blockUser(pid,nick){
+  if(isBlocked(pid)){ toast('Уже заблокирован'); return; }
+  S.blocked.push({pid,nick:nick||''}); saveBlocked();
+  if(S.curDm===pid){ S.curDm=null; showScreen('scr-menu',true); }
+  closeDmChannel(pid); renderDms(); renderProfile();
+  toast('Заблокирован: '+pid);
+}
+/* мой личный ящик: слушаем, пока Skyle открыт */
+function openDmInbox(){
+  if(!T.mod) return;
+  closeDmChannel('@self');
+  const room=T.mod.joinRoom({appId:APP_ID},nsDm(S.pid));
+  const ch={pid:'@self',room,acts:{dm:mkAct(room,'dm'),db:mkAct(room,'db')},last:Date.now(),watch:null};
+  wireDmChan(ch); S.chans.set('@self',ch); S.inbox=ch;
+}
+/* канал для отправки конкретному адресату: заходим в ЕГО ящик */
+function ensureDmChannel(pid){
+  if(pid===S.pid||!T.mod) return null;
+  let ch=S.chans.get(pid);
+  if(ch){ ch.last=Date.now(); return ch; }
+  const room=T.mod.joinRoom({appId:APP_ID},nsDm(pid));
+  ch={pid,room,acts:{dm:mkAct(room,'dm'),db:mkAct(room,'db')},last:Date.now(),watch:null};
+  wireDmChan(ch); S.chans.set(pid,ch);
+  return ch;
+}
+function closeDmChannel(pid){
+  const ch=S.chans.get(pid);
+  if(ch){ try{ ch.watch&&ch.watch.stop(); }catch(e){} try{ ch.room.leave(); }catch(e){} S.chans.delete(pid); }
+}
+setInterval(()=>{ /* неактивные каналы закрываем через 3 минуты */
+  const now=Date.now();
+  for(const [pid,ch] of S.chans){
+    if(pid==='@self'||S.curDm===pid) continue;
+    if(now-ch.last>180000) closeDmChannel(pid);
+  }
+},60000);
+function wireDmChan(ch){
+  ch.acts.dm.onMessage(env=>onDmEnvelope(env));
+  ch.acts.db.onMessage(pack=>onDmChunk(pack));
+  ch.watch=watchPeers(ch.room,
+    ()=>{ ch.last=Date.now(); if(ch.pid!=='@self') dmPeerChanged(ch.pid); },
+    ()=>{ if(ch.pid!=='@self') dmPeerChanged(ch.pid); });
+}
+function chanSend(pid,envObj){
+  const ch=ensureDmChannel(pid);
+  if(!ch) throw new Error('нет канала');
+  ch.acts.dm.send(envObj); ch.last=Date.now();
+}
+/* бинарный пакет личного канала: [pid 7б][fileId 4б][index 4б][IV||шифртекст] */
+function chanBin(pid,fid,idx,pack){
+  const ch=ensureDmChannel(pid); if(!ch) throw new Error('нет канала');
+  const head=new Uint8Array(15); const dv=new DataView(head.buffer);
+  for(let i=0;i<7;i++) head[i]=pid.charCodeAt(i);
+  dv.setUint32(7,fid>>>0); dv.setUint32(11,idx>>>0);
+  ch.acts.db.send(catBytes(head,pack)); ch.last=Date.now();
+}
+/* шифрованная посылка в личный диалог */
+async function dmSendEnc(pid,obj){
+  const d=findDialog(pid);
+  if(!d||!d.pub) return false;
+  try{
+    const key=await deriveDmKey(d.pub);
+    chanSend(pid,{v:1,t:obj.t,f:S.pid,n:S.nick,k:S.pubJwk,p:await seal(key,obj)});
+    return true;
+  }catch(e){ return false; }
+}
+
+/* ---------------- ОБРАБОТКА ЛИЧНЫХ КОНВЕРТОВ ---------------- */
+async function onDmEnvelope(env){
+  try{
+    if(!env||env.v!==1) return;
+    const f=env.f;
+    if(!validId(f)||f===S.pid||isBlocked(f)) return;
+    const d=findDialog(f);
+    let jwk=env.k||(d&&d.pub);
+    if(!jwk) return;
+    if(env.k&&d&&!d.pub){ d.pub=env.k; saveDialogs(); }
+    const key=await deriveDmKey(jwk);
+    if(!key) return;
+    switch(env.t){
+      case 'hi':   onDmHello(f,env); break;
+      case 'hey':  if(d&&env.k&&!d.pub){ d.pub=env.k; saveDialogs(); flushOutbox(d); if(S.curDm===f){ renderDmHeader(); } dmPing(f); } break;
+      case 'pm':   await onDmPm(f,env,key); break;
+      case 'ack':  { const p=await unseal(key,env.p); if(p&&p.id) resolveDmAck(f,p.id); break; }
+      case 'typ':  if(S.curDm===f) showDmTyping(); break;
+      case 'ping': { const p=await unseal(key,env.p); if(p&&p.id) chanSend(f,{v:1,t:'pong',f:S.pid,n:S.nick,k:S.pubJwk,p:await seal(key,{id:p.id})}); break; }
+      case 'pong': { const p=await unseal(key,env.p); if(d&&p&&p.id&&d.pingId===p.id){ d.online=true; d.pingId=null; renderDmStatus(d); } break; }
+      case 'fmeta': await onDmFmeta(f,env,key); break;
+      case 'fack': { const p=await unseal(key,env.p); if(p&&d){ const rec=d.files.get((p.id>>>0)); if(rec&&rec.role==='send'){ const i=p.i|0; if(!rec.acks.has(i)){ rec.acks.add(i); rec.window.delete(i); rec.last=Date.now(); pumpSend(rec); } } } break; }
+      case 'fcancel': { const p=await unseal(key,env.p); if(p&&d){ const rec=d.files.get(p.id>>>0); if(rec&&rec.active) fileFail(rec,'Отменено'); } break; }
+    }
+  }catch(e){}
+}
+/* первый контакт: незнакомец хочет писать — создаём запрос, содержимое скрыто до принятия */
+async function onDmHello(f,env){
+  const d=findDialog(f);
+  if(!d&&!S.requests.some(r=>r.pid===f)){
+    S.requests.push({pid:f,nick:String(env.n||f).slice(0,20),pub:env.k,ts:Date.now(),msgs:[]});
+    saveRequests(); renderDms(); beep();
+    toast(String(env.n||f)+'#'+sfxOf(f)+' ХОЧЕТ НАПИСАТЬ ВАМ');
+  }
+  if(!d&&env.k){ /* запрос без ключа не расшифровать — сохраняем ключ */
+    const r=S.requests.find(x=>x.pid===f); if(r&&!r.pub) r.pub=env.k; saveRequests();
+  }
+  /* отвечаем hey: даём свой публичный ключ, чтобы собеседник мог шифровать */
+  try{ chanSend(f,{v:1,t:'hey',f:S.pid,n:S.nick,k:S.pubJwk}); }catch(e){}
+  if(d){ d.online=null; dmPing(f); }
+}
+async function onDmPm(f,env,key){
+  const p=await unseal(key,env.p);
+  if(!p||typeof p.text!=='string'||!p.text) return;
+  const text=p.text.slice(0,4000);
+  const req=S.requests.find(r=>r.pid===f);
+  if(req){ /* ещё не принят: прячем содержимое до принятия */
+    req.msgs.push({id:p.id,text,ts:p.ts||Date.now()});
+    saveRequests(); renderDms(); beep(); return;
+  }
+  let d=findDialog(f);
+  if(!d){
+    S.requests.push({pid:f,nick:String(env.n||f).slice(0,20),pub:env.k,ts:Date.now(),msgs:[{id:p.id,text,ts:p.ts||Date.now()}]});
+    saveRequests(); renderDms(); beep(); return;
+  }
+  d.pub=env.k||d.pub;
+  if(env.n) d.nick=String(env.n).slice(0,20);
+  d.log.push({kind:'msg',self:false,nick:d.nick,pid:f,time:fmtTime(p.ts||Date.now()),text});
+  hideDmTyping();
+  if(S.curDm!==f||document.hidden){ d.unread=(d.unread||0)+1; }
+  saveDialogs(); renderDms();
+  if(S.curDm===f) renderDmLog();
+  const u=document.querySelector('[data-un="'+f+'"]');
+  if(u){ u.classList.remove('pop'); void u.offsetWidth; u.classList.add('pop'); }
+  beep();
+  try{ chanSend(f,{v:1,t:'ack',f:S.pid,n:S.nick,k:S.pubJwk,p:await seal(key,{id:p.id})}); }catch(e){}
+  ensureDmChannel(f);
+}
+function resolveDmAck(pid,id){
+  const d=findDialog(pid);
+  if(d&&d.pendingMsgId===id){ clearTimeout(d.ackTimer); d.pendingMsgId=null; d.online=true; renderDmStatus(d); }
+}
+/* проверка живости: шифрованный ping может ответить только владелец ключа */
+async function dmPing(pid){
+  const d=findDialog(pid);
+  if(!d||!d.pub) return;
+  try{
+    const key=await deriveDmKey(d.pub);
+    const id=uid(); d.pingId=id;
+    chanSend(pid,{v:1,t:'ping',f:S.pid,n:S.nick,k:S.pubJwk,p:await seal(key,{id})});
+    d.online=null; renderDmStatus(d);
+    setTimeout(()=>{ if(d.pingId===id){ d.online=false; d.pingId=null; renderDmStatus(d); } },4000);
+  }catch(e){}
+}
+function dmPeerChanged(pid){
+  const ch=S.chans.get(pid);
+  const d=findDialog(pid); if(!d) return;
+  if(ch&&peerCount(ch.room)>0) dmPing(pid);
+  else{ d.online=false; renderDmStatus(d); }
+}
+async function onDmFmeta(f,env,key){
+  const d=findDialog(f); if(!d) return;   /* файлы — только для принятых диалогов */
+  try{
+    const p=await unseal(key,env.p);
+    if(!p||!Number.isInteger(p.id)) return;
+    if(typeof p.size!=='number'||p.size<1||p.size>DM_LIMIT) return;
+    const chunks=p.chunks|0; if(chunks<1||chunks>8000) return;
+    if(d.files.has(p.id>>>0)) return;
+    const rec={ domId:'f'+(++fileSeq), fid:p.id>>>0, role:'recv', name:cleanName(p.name),
+      size:p.size, mime:String(p.mime||''), chunks, status:'Получение', pct:0,
+      parts:new Array(chunks), got:0, url:null, imgUrl:null, last:Date.now(), active:true, ctx:{type:'dm',pid:f} };
+    d.files.set(rec.fid,rec);
+    d.log.push({kind:'file',self:false,nick:env.n||d.nick,pid:f,time:nowTime(),rec});
+    if(S.curDm===f) renderDmLog(); else{ d.unread=(d.unread||0)+1; saveDialogs(); renderDms(); }
+    ensureDmChannel(f);
+  }catch(e){}
+}
+async function onDmChunk(pack){
+  try{
+    if(!pack||pack.length<15+28) return;
+    const pid=dec.decode(pack.subarray(0,7));
+    if(!validId(pid)||pid===S.pid||isBlocked(pid)) return;
+    const dv=new DataView(pack.buffer,pack.byteOffset);
+    const fid=dv.getUint32(7), idx=dv.getUint32(11);
+    const d=findDialog(pid); if(!d||!d.pub) return;
+    const key=await deriveDmKey(d.pub);
+    const chunk=await aesDec(key,pack.subarray(15));
+    receiveFile(pid,fid>>>0,idx>>>0,chunk,async ()=>{
+      try{ const k2=await deriveDmKey(d.pub);
+        chanSend(pid,{v:1,t:'fack',f:S.pid,n:S.nick,k:S.pubJwk,p:await seal(k2,{id:fid,i:idx})});
+      }catch(e){}
+    });
+  }catch(e){}
+}
+
+/* ---------------- ОТКРЫТИЕ ДИАЛОГА И ОТПРАВКА ---------------- */
+function openDm(pid,nick,pub){
+  if(pid===S.pid){ toast('Это ваш собственный ID'); return; }
+  if(isBlocked(pid)){ toast('Пользователь заблокирован'); return; }
+  let d=findDialog(pid);
+  if(!d){
+    d={pid,nick:nick||pid,pub:pub||null,unread:0,ts:Date.now(),log:[],files:new Map(),outbox:[],helloSent:false,online:null};
+    S.dialogs.unshift(d); saveDialogs();
+  }
+  if(nick) d.nick=nick;
+  if(pub&&!d.pub) d.pub=pub;
+  if(T.mod) ensureDmChannel(pid);
+  S.curDm=pid;
+  d.unread=0; saveDialogs(); renderDms();
+  renderDmHeader(); renderDmLog();
+  showScreen('scr-dm');
+  if(d.pub) dmPing(pid);
+}
+/* запрос на переписку: заход в ящик адресата + конверт hi */
+function sendDmRequest(d){
+  if(d.helloSent) return;
+  d.helloSent=true;
+  try{ chanSend(d.pid,{v:1,t:'hi',f:S.pid,n:S.nick,k:S.pubJwk}); }catch(e){}
+}
+async function sendDmMessage(){
+  const d=curDialog(); if(!d) return;
+  const ta=$('dm-input'); const text=ta.value.trim();
+  if(!text) return;
+  if(text.length>4000){ toast('Сообщение слишком длинное'); return; }
+  ta.value=''; autoGrow(ta);
+  const id=uid();
+  d.log.push({kind:'msg',self:true,nick:S.nick,pid:S.pid,time:nowTime(),text});
+  renderDmLog();
+  const deliver=async ()=>{
+    if(!d.pub){ d.outbox.push({id,text}); armDmAckTimer(d,id); return; }
+    const ok=await dmSendEnc(d.pid,{t:'pm',id,text,ts:Date.now()});
+    if(ok){ d.pendingMsgId=id; armDmAckTimer(d,id); }
+    else dmSys(d,'Пользователь не в сети. Сообщение не доставлено.');
+  };
+  if(!d.helloSent){ sendDmRequest(d); }
+  deliver();
+  dmTypingPing();
+}
+function armDmAckTimer(d,id){
+  d.pendingMsgId=id;
+  clearTimeout(d.ackTimer);
+  d.ackTimer=setTimeout(()=>{
+    if(d.pendingMsgId===id) dmSys(d,'Пользователь не в сети. Сообщение не доставлено.');
+  },6000);
+}
+async function flushOutbox(d){
+  if(!d||!d.outbox||!d.outbox.length) return;
+  const q=d.outbox.splice(0);
+  for(const m of q){
+    const ok=await dmSendEnc(d.pid,{t:'pm',id:m.id,text:m.text,ts:Date.now()});
+    if(ok){ d.pendingMsgId=m.id; armDmAckTimer(d,m.id); }
+    else dmSys(d,'Пользователь не в сети. Сообщение не доставлено.');
+  }
+}
+function dmSys(d,text){ d.log.push({kind:'sys',text}); if(S.curDm===d.pid) renderDmLog(); }
+function dmTypingPing(){
+  const d=curDialog(); if(!d||!d.pub) return;
+  const n=Date.now();
+  if(n-lastTypSent>1800){ lastTypSent=n; dmSendEnc(d.pid,{t:'typ',ts:n}); }
+}
+function showDmTyping(){
+  $('dm-typing').classList.remove('hidden');
+  clearTimeout(dmTypTimer);
+  dmTypTimer=setTimeout(hideDmTyping,3000);
+}
+function hideDmTyping(){ $('dm-typing').classList.add('hidden'); }
+
+/* ---------------- ЗАПРОСЫ НА ПЕРЕПИСКУ ---------------- */
+function acceptRequest(pid){
+  const i=S.requests.findIndex(r=>r.pid===pid);
+  if(i<0) return;
+  const r=S.requests.splice(i,1)[0];
+  saveRequests();
+  let d=findDialog(pid);
+  if(!d){ d={pid,nick:r.nick,pub:r.pub||null,unread:0,ts:Date.now(),log:[],files:new Map(),outbox:[],helloSent:false,online:null}; S.dialogs.unshift(d); }
+  d.nick=r.nick; if(r.pub) d.pub=r.pub; d.ts=Date.now();
+  for(const pm of (r.msgs||[])) d.log.push({kind:'msg',self:false,nick:r.nick,pid,f:pid,time:fmtTime(pm.ts||Date.now()),text:pm.text});
+  d.unread+=(r.msgs||[]).length;
+  saveDialogs(); renderDms();
+  openDm(pid,d.nick,d.pub);
+  (async()=>{ for(const pm of (r.msgs||[])){ try{ await dmSendEnc(pid,{t:'ack',id:pm.id}); }catch(e){} } })();
+}
+function declineRequest(pid){
+  S.requests=S.requests.filter(r=>r.pid!==pid);
+  saveRequests(); renderDms();
+  if(S.curDm===pid) renderDmHeader();
+}
+
+/* ---------------- ОТРИСОВКА ЛИЧНЫХ ЧАТОВ И МЕНЮ ---------------- */
+function renderDmHeader(){
+  const d=curDialog(); if(!d) return;
+  $('dm-name').innerHTML=esc(d.nick)+'<span class="sfx muted">#'+esc(sfxOf(d.pid))+'</span>';
+  $('dm-sub').textContent=d.pid;
+  renderDmStatus(d); renderFingerprint(d); renderDmReqCard();
+}
+function renderDmStatus(d){
+  if(!d||S.curDm!==d.pid) return;
+  const sq=$('dm-sq');
+  sq.classList.toggle('on',d.online===true);
+  $('dm-sub').textContent=d.pid+' · '+(d.online===true?'В СЕТИ':d.online===false?'НЕ В СЕТИ':'СТАТУС НЕИЗВЕСТЕН');
+}
+async function renderFingerprint(d){
+  const el=$('dm-fp');
+  if(!d||!d.pub){ el.textContent='ОТПЕЧАТОК КЛЮЧА: —'; return; }
+  const fp=await fingerprint(S.pubJwk,d.pub);
+  el.textContent='ОТПЕЧАТОК КЛЮЧА: '+(fp||'—');
+}
+function renderDmReqCard(){
+  const d=curDialog(); const box=$('dm-req');
+  const r=d&&S.requests.find(x=>x.pid===d.pid);
+  if(!r){ box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  $('dm-req-t').textContent=r.nick+'#'+sfxOf(r.pid)+' ХОЧЕТ НАПИСАТЬ ВАМ';
+}
+function renderDmLog(){
+  const d=curDialog(); if(!d) return;
+  const box=$('dm-msgs');
+  const stick=box.scrollHeight-box.scrollTop-box.clientHeight<90;
+  box.innerHTML=d.log.map(msgHtml).join('');
+  bindFileButtonsOnce(box,d.pid);
+  if(stick) box.scrollTo({top:box.scrollHeight,behavior:'smooth'});
+}
+function renderDms(){
+  const rq=$('req-list');
+  rq.innerHTML=S.requests.map((r,i)=>
+    '<div class="req stag" style="animation-delay:'+Math.min(i,9)*30+'ms">'+
+    '<div class="req-t">'+esc(r.nick)+'#'+esc(sfxOf(r.pid))+' ХОЧЕТ НАПИСАТЬ ВАМ</div>'+
+    '<div class="req-b">'+
+      '<button class="btn btn-mini" data-req="accept:'+esc(r.pid)+'">ПРИНЯТЬ</button>'+
+      '<button class="btn btn-mini" data-req="decline:'+esc(r.pid)+'">ОТКЛОНИТЬ</button>'+
+      '<button class="btn btn-mini" data-req="block:'+esc(r.pid)+'">ЗАБЛОКИРОВАТЬ</button>'+
+    '</div></div>').join('');
+  const dl=$('dm-list');
+  if(!S.dialogs.length){ dl.innerHTML='<div class="note" style="padding:10px">ДИАЛОГОВ НЕТ. НАПИШИТЕ ПО ID ИЛИ НАЙДИТЕ ЛЮДЕЙ В КОМНАТАХ.</div>'; return; }
+  dl.innerHTML=S.dialogs.map((d,i)=>
+    '<div class="row stag" style="animation-delay:'+Math.min(i,9)*30+'ms">'+
+    '<div class="row-main"><div class="row-t">'+esc(d.nick)+'<span class="sfx muted">#'+esc(sfxOf(d.pid))+'</span> '+
+      (d.unread?'<span class="unread" data-un="'+esc(d.pid)+'">['+d.unread+']</span>':'')+'</div>'+
+    '<div class="row-s muted small"><span class="sq '+(d.online===true?'on':'')+'"></span> '+esc(d.pid)+' · '+
+      (d.online===true?'в сети':d.online===false?'не в сети':'статус неизвестен')+'</div></div>'+
+    '<div class="row-btns"><button class="btn btn-mini" data-dm="open:'+esc(d.pid)+'">ОТКРЫТЬ</button></div></div>').join('');
+}
+
+/* ---------------- ПРОФИЛЬ ---------------- */
+function renderProfile(){
+  $('prof-nick').value=S.nick;
+  $('prof-id').textContent=S.pid;
+  $('sound-btn').textContent='ЗВУК: '+(store.get('sound',true)?'ВКЛ':'ВЫКЛ');
+  renderThemeUi();
+  const bl=$('blocked-list');
+  if(!S.blocked.length){ bl.innerHTML='<div class="note" style="padding:4px 0">СПИСОК ПУСТ.</div>'; return; }
+  bl.innerHTML=S.blocked.map(b=>
+    '<div class="row"><div class="row-main"><div class="row-t">'+esc(b.nick||b.pid)+
+    '<span class="sfx muted">#'+esc(sfxOf(b.pid))+'</span></div>'+
+    '<div class="row-s muted small">'+esc(b.pid)+'</div></div>'+
+    '<div class="row-btns"><button class="btn btn-mini" data-unblock="'+esc(b.pid)+'">РАЗБЛОКИРОВАТЬ</button></div></div>').join('');
+}
+async function resetPersonalId(){
+  const ok=await confirmBox('Старый ID перестанет работать, контакты потеряют вас. Продолжить?','СБРОСИТЬ');
+  if(!ok) return;
+  S.pid=randId(6); store.set('pid',S.pid);
+  try{ const kp=await ensureKeys(true); S.pubJwk=kp.pub; S.privJwk=kp.priv; S.dmkCache.clear(); }catch(e){}
+  for(const pid of [...S.chans.keys()]) closeDmChannel(pid);   /* закрыть личные каналы */
+  S.requests=[]; saveRequests();
+  if(S.curDm){ S.curDm=null; showScreen('scr-menu',true); }     /* активные диалоги закрываются */
+  openDmInbox();
+  $('setup-id').textContent=S.pid;
+  renderProfile(); renderDms();
+  toast('Новый ID: '+S.pid+'. Активные личные диалоги закрыты.');
+}
+
+/* ---------------- КЛАВИАТУРА, ВЬЮПОРТ, ВВОД ---------------- */
+function autoGrow(ta){ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,120)+'px'; }
+function vvInit(){
+  const set=()=>{
+    const h=window.visualViewport?Math.round(visualViewport.height):window.innerHeight;
+    document.documentElement.style.setProperty('--app-h',h+'px');
+    if(S.screen==='scr-room'||S.screen==='scr-dm'){
+      const ml=$(S.screen==='scr-room'?'room-msgs':'dm-msgs');
+      if(ml) ml.scrollTop=ml.scrollHeight;
+    }
+  };
+  if(window.visualViewport) visualViewport.addEventListener('resize',set);
+  window.addEventListener('resize',set);
+  set();
+}
+function bindChatInput(taId,sendFn,typingFn){
+  const ta=$(taId);
+  ta.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendFn(); } });
+  ta.addEventListener('input',()=>{ autoGrow(ta); typingFn&&typingFn(); });
+  ta.addEventListener('paste',e=>{
+    const fs=e.clipboardData&&e.clipboardData.files;
+    if(fs&&fs[0]){ e.preventDefault(); pickFile(fs[0]); }
+  });
+}
+function pickFile(file){
+  if(S.screen==='scr-room') sendFile(file,{type:'room'});
+  else if(S.screen==='scr-dm'){ const d=curDialog(); if(d) sendFile(file,{type:'dm',dialog:d}); }
+}
+function bindDnd(mainId,zoneId){
+  const main=$(mainId), zone=$(zoneId);
+  let depth=0;
+  main.addEventListener('dragenter',e=>{ e.preventDefault(); depth++; zone.classList.remove('hidden'); });
+  main.addEventListener('dragover',e=>{ e.preventDefault(); });
+  main.addEventListener('dragleave',()=>{ if(--depth<=0){ depth=0; zone.classList.add('hidden'); } });
+  main.addEventListener('drop',e=>{
+    e.preventDefault(); depth=0; zone.classList.add('hidden');
+    const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
+    if(f) pickFile(f);
+  });
+}
+
+/* ---------------- ПРИВЯЗКА ИНТЕРФЕЙСА ---------------- */
+function bindUi(){
+  document.querySelectorAll('[data-back]').forEach(b=>
+    b.addEventListener('click',()=>{ if(b.dataset.back==='scr-join') cancelJoin(); showScreen(b.dataset.back,true); }));
+  $('profile-btn').onclick=()=>{ renderProfile(); showScreen('scr-profile'); };
+  $('theme-btn').onclick=()=>{
+    const order=['light','dark','auto'];
+    const cur=store.get('theme','auto');
+    setThemeMode(order[(order.indexOf(cur)+1)%order.length]);
+  };
+  document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+    S.tab=t.dataset.tab;
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
+    ['rooms','public','dm'].forEach(n=>$('tab-'+n).classList.toggle('hidden',n!==S.tab));
+    if(S.tab==='rooms'){ renderRooms(); previewMyRooms(); }
+    if(S.tab==='public') renderPublic();
+    if(S.tab==='dm') renderDms();
+  }));
+  $('setup-save').onclick=()=>{
+    const v=$('setup-nick').value.trim();
+    if(!validNick(v)){ toast('Ник: от 2 до 20 символов'); return; }
+    S.nick=v; store.set('nick',v);
+    startNet();
+    showScreen('scr-menu'); renderProfile();
+    toast('Добро пожаловать, '+v);
+  };
+  $('go-create').onclick=()=>showScreen('scr-create');
+  $('go-join').onclick=()=>openJoin('');
+  $('go-write').onclick=()=>showScreen('scr-write');
+  $('create-go').onclick=createRoom;
+  $('created-copy').onclick=()=>copyText(S.pending?S.pending.id:'');
+  $('created-enter').onclick=async()=>{
+    if(!S.pending||!T.mod){ toast('Библиотека ещё загружается'); return; }
+    $('created-enter').disabled=true;
+    try{ await enterCreatorRoom(S.pending); S.pending=null; }
+    catch(e){ toast('Не удалось открыть комнату'); }
+    $('created-enter').disabled=false;
+  };
+  $('join-find').onclick=()=>joinPreview($('join-id').value);
+  $('join-id').addEventListener('input',e=>{ e.target.value=fmtId(e.target.value); });
+  $('join-id').addEventListener('keydown',e=>{ if(e.key==='Enter') joinPreview(e.target.value); });
+  $('join-go').onclick=joinRoom;
+  $('write-id').addEventListener('input',e=>{ e.target.value=fmtId(e.target.value); });
+  $('write-go').onclick=()=>{
+    const pid=fmtId($('write-id').value);
+    if(!validId(pid)){ toast('Введите ID формата XXX-XXX'); return; }
+    if(pid===S.pid){ toast('Это ваш собственный ID'); return; }
+    const d=findDialog(pid);
+    openDm(pid,d?d.nick:'',d?d.pub:null);
+  };
+  /* комната */
+  $('room-back').onclick=()=>{ leaveRoom(); showScreen('scr-menu',true); };
+  $('btn-call').onclick=()=>toast('Звонки появятся позже');  /* архитектура готова к getUserMedia */
+  $('btn-members').onclick=()=>{ $('room-members').classList.add('open'); $('room-backdrop').classList.add('show'); };
+  $('members-close').onclick=closeMembersPanel;
+  $('room-backdrop').onclick=closeMembersPanel;
+  $('room-send').onclick=sendMessage;
+  $('room-attach').onclick=()=>$('room-file').click();
+  $('room-file').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) sendFile(f,{type:'room'}); e.target.value=''; });
+  $('room-public').addEventListener('change',e=>{
+    if(!S.room) return;
+    S.room.public=e.target.checked; store.set('pub_'+S.room.id,S.room.public);
+    if(S.room.public) startAnnounce(); else if(S.room.annTimer){ clearInterval(S.room.annTimer); S.room.annTimer=null; }
+    renderMembers();
+    toast(S.room.public?'Комната видна в списке публичных':'Комната скрыта из списка');
+  });
+  $('room-members-list').addEventListener('click',e=>{
+    const row=e.target.closest('.mem'); if(!row||!row.dataset.pid||!S.room) return;
+    const m=S.room.members.get([...S.room.members.keys()].find(k=>S.room.members.get(k).pid===row.dataset.pid));
+    if(m) memberModal(m);
+  });
+  bindChatInput('room-input',sendMessage,roomTypingPing);
+  bindDnd('room-chatmain','room-drop');
+  /* личные чаты */
+  $('dm-back').onclick=()=>{ S.curDm=null; renderDms(); showScreen('scr-menu',true); };
+  $('dm-send').onclick=sendDmMessage;
+  $('dm-attach').onclick=()=>$('dm-file').click();
+  $('dm-file').addEventListener('change',e=>{ const f=e.target.files[0]; const d=curDialog(); if(f&&d) sendFile(f,{type:'dm',dialog:d}); e.target.value=''; });
+  bindChatInput('dm-input',sendDmMessage,dmTypingPing);
+  bindDnd('dm-chatmain','dm-drop');
+  $('dm-req').addEventListener('click',e=>{
+    const b=e.target.closest('[data-req]'); if(!b||!S.curDm) return;
+    const pid=S.curDm;
+    if(b.dataset.req==='accept') acceptRequest(pid);
+    if(b.dataset.req==='decline') declineRequest(pid);
+    if(b.dataset.req==='block'){ const r=S.requests.find(x=>x.pid===pid); blockUser(pid,r?r.nick:''); }
+  });
+  /* меню-списки (делегирование) */
+  $('rooms-list').addEventListener('click',e=>{
+    const b=e.target.closest('[data-room]'); if(!b) return;
+    const [act,id]=b.dataset.room.split(':');
+    if(act==='enter') openJoin(id);
+    if(act==='forget') forgetRoom(id);
+  });
+  $('public-list').addEventListener('click',e=>{
+    if(e.target.closest('#empty-create')){ showScreen('scr-create'); return; }
+    const b=e.target.closest('[data-pub]'); if(!b) return;
+    const [act,id]=b.dataset.pub.split(':');
+    if(act==='join') openJoin(id);
+  });
+  $('req-list').addEventListener('click',e=>{
+    const b=e.target.closest('[data-req]'); if(!b) return;
+    const [act,pid]=b.dataset.req.split(':');
+    if(act==='accept') acceptRequest(pid);
+    if(act==='decline') declineRequest(pid);
+    if(act==='block'){ const r=S.requests.find(x=>x.pid===pid); blockUser(pid,r?r.nick:''); }
+  });
+  $('dm-list').addEventListener('click',e=>{
+    const b=e.target.closest('[data-dm]'); if(!b) return;
+    const [act,pid]=b.dataset.dm.split(':');
+    if(act==='open'){ const d=findDialog(pid); openDm(pid,d?d.nick:'',d?d.pub:null); }
+  });
+  /* профиль */
+  $('prof-nick-save').onclick=()=>{
+    const v=$('prof-nick').value.trim();
+    if(!validNick(v)){ toast('Ник: от 2 до 20 символов'); return; }
+    S.nick=v; store.set('nick',v);
+    sendMyPresence();            /* обновляем ник у участников комнаты */
+    renderProfile(); toast('Ник сохранён');
+  };
+  $('prof-copy').onclick=()=>copyText(S.pid);
+  $('prof-reset').onclick=resetPersonalId;
+  document.querySelectorAll('.seg-btn').forEach(b=>b.onclick=()=>setThemeMode(b.dataset.mode));
+  $('sound-btn').onclick=()=>{ store.set('sound',!store.get('sound',true)); renderProfile(); };
+  $('blocked-list').addEventListener('click',e=>{
+    const b=e.target.closest('[data-unblock]'); if(!b) return;
+    S.blocked=S.blocked.filter(x=>x.pid!==b.dataset.unblock);
+    saveBlocked(); renderProfile(); toast('Разблокирован: '+b.dataset.unblock);
+  });
+}
+function closeMembersPanel(){ $('room-members').classList.remove('open'); $('room-backdrop').classList.remove('show'); }
+
+/* ---------------- ЗАПУСК ---------------- */
+function startNet(){ if(netUp||!T.mod) return; netUp=true; joinLobby(); openDmInbox(); }
+(async function init(){
+  try{
+    bindUi(); vvInit(); applyTheme(); renderThemeUi();
+    if(!window.RTCPeerConnection){ fatal('WebRTC недоступен в этом браузере. Skyle работает на прямых P2P-соединениях (WebRTC).'); return; }
+    if(!(window.crypto&&crypto.subtle)){ fatal('Web Crypto недоступен. Откройте Skyle по https или на localhost.'); return; }
+    S.pid=store.get('pid',null);
+    if(!validId(S.pid)){ S.pid=randId(6); store.set('pid',S.pid); }
+    const kp=await ensureKeys();
+    S.pubJwk=kp.pub; S.privJwk=kp.priv;
+    S.nick=store.get('nick','');
+    S.blocked=Array.isArray(store.get('blocked',[]))?store.get('blocked',[]):[];
+    S.requests=Array.isArray(store.get('requests',[]))?store.get('requests',[]):[];
+    loadDialogs();
+    $('setup-id').textContent=S.pid;
+    if(!S.nick) showScreen('scr-setup'); else showScreen('scr-menu');
+    setTimeout(showWhatsnew,350); /* окно «Что нового?» при входе на сайт */
+    await loadTrystero();
+    renderRooms(); renderPublic(); renderDms(); renderProfile();
+    if(S.nick) startNet();
+  }catch(e){ fatal('Ошибка запуска: '+((e&&e.message)||e)); }
+})();
+/* после выгрузки страницы соединения закрываются сами; история и blob-URL освобождаются */
+addEventListener('pagehide',()=>{ if(S.room) leaveRoom(); for(const pid of [...S.chans.keys()]) closeDmChannel(pid); });
+
+/* Доступ для автотестов (на работу не влияет) */
+window.__skyle={S,showScreen,renderRoomLog,renderDmLog,renderDmHeader,renderMembers,renderDms,renderRooms,renderPublic,renderProfile,applyTheme,esc,sfxOf};
 </script>
+</body>
+</html>
