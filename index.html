@@ -218,6 +218,10 @@ textarea.inp{max-height:120px}
 .wn-body pre{border:1px solid var(--line-soft);padding:8px 10px;overflow:auto;font-size:12px;line-height:1.5;white-space:pre}
 .wn-body a{color:var(--fg);text-decoration:underline}
 .wn-body blockquote{border-left:2px solid var(--fg);margin:8px 0;padding:2px 0 2px 10px;color:var(--muted)}
+/* звонки */
+.callbar{display:flex;align-items:center;gap:8px;border:1px solid var(--fg);padding:4px 10px;margin:8px 10px 0;flex:none;animation:wnIn .2s var(--cubic) both}
+.callbar .call-t{font-size:12px;letter-spacing:.1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.callic{display:inline-flex;margin-left:6px;flex:none}
 /* ============ СЕГМЕНТЫ (тема) ============ */
 .seg{display:flex;border:1px solid var(--fg)}
 .seg-btn{
@@ -377,11 +381,17 @@ textarea.inp{max-height:120px}
     <button class="btn-top" id="room-back">&lt; НАЗАД</button>
     <span class="tb-title"><span class="t1" id="room-name">КОМНАТА</span><span class="t2" id="room-sub"></span></span>
     <span class="flex-sp"></span>
-    <button class="btn-top" id="btn-call" disabled title="Звонки появятся позже (getUserMedia)">ЗВОНОК</button>
+    <button class="btn-top" id="btn-call" title="Групповой голосовой звонок">ЗВОНОК</button>
     <button class="btn-top" id="btn-members">УЧАСТНИКИ</button>
   </div>
   <div class="chat-wrap">
     <div class="chat-main" id="room-chatmain">
+      <div class="callbar hidden" id="room-callbar">
+        <span class="call-t" id="room-call-t">ЗВОНОК</span>
+        <span class="flex-sp"></span>
+        <button class="btn btn-mini" id="room-call-mute">МИКРОФОН: ВКЛ</button>
+        <button class="btn btn-mini" id="room-call-drop">ПОКИНУТЬ</button>
+      </div>
       <div class="msglist" id="room-msgs"></div>
       <div class="hint">ИСТОРИЯ — ТОЛЬКО В ПАМЯТИ, ПОКА В КОМНАТЕ ЕСТЬ ЛЮДИ. ФАЙЛЫ НЕ СОХРАНЯЮТСЯ.</div>
       <div class="typing hidden" id="room-typing">
@@ -407,6 +417,12 @@ textarea.inp{max-height:120px}
           <span>ПОКАЗЫВАТЬ В СПИСКЕ ПУБЛИЧНЫХ</span></label>
         <div class="note">Название и ID увидят все пользователи Skyle. Для входа нужен пароль.</div>
       </div>
+      <div class="manage">
+        <div class="h">УПРАВЛЕНИЕ КОМНАТОЙ</div>
+        <button class="btn wide" id="room-forget">ЗАБЫТЬ У СЕБЯ</button>
+        <button class="btn wide hidden" id="room-destroy">УДАЛИТЬ У ВСЕХ</button>
+        <div class="note">«Удалить у всех» выгонит всех, кто сейчас в комнате, и удалит её у них из списка. У офлайн-участников комната просто опустеет.</div>
+      </div>
       <div class="list" id="room-members-list"></div>
     </aside>
   </div>
@@ -421,10 +437,18 @@ textarea.inp{max-height:120px}
     <button class="btn-top" id="dm-back">&lt; НАЗАД</button>
     <span class="tb-title"><span class="t1" id="dm-name">ДИАЛОГ</span><span class="t2" id="dm-sub"></span></span>
     <span class="flex-sp"></span>
+    <button class="btn-top" id="dm-call" disabled title="Голосовой звонок">ЗВОНОК</button>
+    <button class="btn-top" id="dm-more" title="Действия с чатом">ЕЩЁ</button>
     <span class="sq" id="dm-sq" title="Статус собеседника"></span>
   </div>
   <div class="chat-wrap">
     <div class="chat-main" id="dm-chatmain">
+      <div class="callbar hidden" id="dm-callbar">
+        <span class="call-t" id="dm-call-t">ЗВОНОК</span>
+        <span class="flex-sp"></span>
+        <button class="btn btn-mini" id="dm-call-mute">МИКРОФОН: ВКЛ</button>
+        <button class="btn btn-mini" id="dm-call-drop">ЗАВЕРШИТЬ</button>
+      </div>
       <div class="fp small muted" id="dm-fp">ОТПЕЧАТОК КЛЮЧА: —</div>
       <div class="req hidden" id="dm-req">
         <div class="req-t" id="dm-req-t"></div>
@@ -794,6 +818,270 @@ async function showWhatsnew(){
   }
 }
 
+/* ---------------- ЗВОНКИ (WebRTC, только микрофон) ---------------- */
+const C={dm:null,room:null,incoming:null};   /* активные звонки и входящий вызов */
+let incModal=null;
+function getMic(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia) return Promise.reject(new Error('no media'));
+  return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
+}
+function fmtDur(ms){ const s=Math.floor(ms/1000),m=Math.floor(s/60); return m+':'+String(s%60).padStart(2,'0'); }
+/* сигналы звонка: повторяющиеся бипы WebAudio (не зависят от «звука сообщений») */
+let toneTimer=null;
+function toneLoop(kind){
+  toneStop();
+  const pat=kind==='ring'?[[880,.22],[660,.22]]:[[440,.4],[480,.4]];
+  let step=0;
+  const play=()=>{
+    try{
+      audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+      if(audioCtx.state==='suspended') audioCtx.resume();
+      const [f,d]=pat[step%pat.length]; step++;
+      const t=audioCtx.currentTime,o=audioCtx.createOscillator(),g=audioCtx.createGain();
+      o.type='sine'; o.frequency.value=f;
+      g.gain.setValueAtTime(.1,t); g.gain.exponentialRampToValueAtTime(.0001,t+d);
+      o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+d+.02);
+    }catch(e){}
+  };
+  play(); toneTimer=setInterval(play,1800);
+}
+function toneStop(){ if(toneTimer){ clearInterval(toneTimer); toneTimer=null; } }
+
+/* ожидаем появления пира в личном канале: после пересоздания канала «слепые» посылки теряются */
+async function waitDmPeer(ch,tries){
+  for(let i=0;i<(tries||12);i++){
+    if(peerCount(ch.room)>0) return true;
+    await sleep(700);
+  }
+  return peerCount(ch.room)>0;
+}
+async function dmSendReliable(pid,jwk,obj,guard){
+  const ch=ensureDmChannel(pid);
+  if(!ch) return false;
+  await waitDmPeer(ch);
+  if(guard&&!guard()) return false;
+  return dmSendKey(pid,jwk,obj);
+}
+/* Trystero не отправляет поток пирам, подключившимся ПОСЛЕ addStream — доставляем сами, когда пир появился */
+function pushCallStream(room,stream,tag){
+  const attempt=n=>setTimeout(()=>{
+    if(tag==='dm'&&(!C.dm||C.dm.room!==room)) return;
+    if(tag==='room'&&(!C.room||!S.room||S.room.room!==room)) return;
+    if(peerCount(room)===0){ if(n<14) attempt(n+1); return; }
+    try{ const ps=room.addStream(stream); (ps||[]).forEach(p=>p&&p.catch&&p.catch(()=>{})); }catch(e){}
+  },n*700);
+  attempt(1);
+}
+/* ---- личный звонок 1-на-1: медиа идёт через ящик адресата ---- */
+function dmCallBar(){
+  const on=!!C.dm;
+  $('dm-callbar').classList.toggle('hidden',!on);
+  if(on){ $('dm-call-t').textContent='ВЫЗОВ...'; $('dm-call-mute').textContent='МИКРОФОН: ВКЛ'; }
+}
+function dmCallTimerStart(){
+  if(!C.dm) return;
+  C.dm.t0=Date.now();
+  clearInterval(C.dm.timer);
+  $('dm-call-t').textContent='0:00';
+  C.dm.timer=setInterval(()=>{ if(C.dm) $('dm-call-t').textContent=fmtDur(Date.now()-C.dm.t0); },500);
+}
+function dmRemoteAttach(){
+  const c=C.dm; if(!c||!c.rem) return;
+  if(!c.el){ c.el=new Audio(); c.el.autoplay=true; }
+  try{ c.el.srcObject=c.rem; c.el.play().catch(()=>{}); }catch(e){}
+}
+async function dmCallStart(){
+  const d=curDialog();
+  if(!d||!d.pub){ toast('Собеседник ещё не подтвердил связь'); return; }
+  if(C.dm||C.room||C.incoming){ toast('Линия занята: уже есть активный звонок'); return; }
+  let stream;
+  try{ stream=await getMic(); }catch(e){ toast('Микрофон недоступен: разрешите доступ (нужен https)'); return; }
+  const ch=ensureDmChannel(d.pid);
+  if(!ch){ try{ stream.getTracks().forEach(t=>t.stop()); }catch(e){} toast('Нет канала связи'); return; }
+  C.dm={pid:d.pid,room:ch.room,stream,rem:null,muted:false,answered:false,dir:'out',t0:0,timer:null,el:null,ring:null};
+  pushCallStream(ch.room,stream,'dm');
+  toneLoop('back');
+  dmCallBar();
+  C.dm.ring=setTimeout(()=>{ if(C.dm&&!C.dm.answered){ dmCallEnd(null,true); toast('Нет ответа'); } },30000);
+  await waitDmPeer(ch);
+  if(!C.dm||C.dm.room!==ch.room) return;
+  dmSendEnc(d.pid,{t:'call'});
+}
+async function dmCallAccept(){
+  const inc=C.incoming; if(!inc) return;
+  const pid=inc.pid;
+  incomingClose();
+  if(C.dm||C.room){ toast('Линия занята'); return; }
+  const ch=S.chans.get('@self');
+  if(!ch){ toast('Личный ящик недоступен'); return; }
+  let stream;
+  try{ stream=await getMic(); }catch(e){ dmDeclineTo(pid,{}); toast('Микрофон недоступен: разрешите доступ (нужен https)'); return; }
+  C.dm={pid,room:ch.room,stream,rem:null,muted:false,answered:true,dir:'in',t0:0,timer:null,el:null,ring:null};
+  if(ch.remStream){ C.dm.rem=ch.remStream; dmRemoteAttach(); }
+  pushCallStream(ch.room,stream,'dm');
+  const d=findDialog(pid);
+  const jwk=(d&&d.pub)||(S.requests.find(x=>x.pid===pid)||{}).pub;
+  if(jwk) dmSendKey(pid,jwk,{t:'call-acc'});
+  dmCallTimerStart(); dmCallBar();
+}
+function dmDeclineTo(pid,extra){
+  const d=findDialog(pid);
+  const jwk=(d&&d.pub)||(S.requests.find(x=>x.pid===pid)||{}).pub;
+  if(jwk) dmSendKey(pid,jwk,Object.assign({t:'call-dec'},extra||{}));
+}
+function dmCallDecline(){
+  const inc=C.incoming; if(!inc) return;
+  const pid=inc.pid;
+  incomingClose();
+  dmDeclineTo(pid,{});
+}
+function incomingClose(){
+  if(C.incoming){ if(C.incoming.timer) clearTimeout(C.incoming.timer); C.incoming=null; }
+  toneStop();
+  if(incModal){ try{ incModal.remove(); }catch(e){} incModal=null; }
+}
+function showIncoming(pid,nick){
+  incomingClose();
+  C.incoming={pid,timer:null};
+  toneLoop('ring');
+  const w=document.createElement('div'); w.className='modal wn-in';
+  const box=document.createElement('div'); box.className='modal-box';
+  const t=document.createElement('div'); t.className='wn-title'; t.textContent='ВХОДЯЩИЙ ЗВОНОК';
+  const tx=document.createElement('div'); tx.className='modal-text'; tx.style.marginTop='10px';
+  tx.innerHTML=esc(nick)+'<span class="sfx muted">#'+esc(sfxOf(pid))+'</span>';
+  const br=document.createElement('div'); br.className='modal-btns';
+  const dec=document.createElement('button'); dec.className='btn'; dec.textContent='ОТКЛОНИТЬ';
+  const acc=document.createElement('button'); acc.className='btn btn-primary'; acc.textContent='ПРИНЯТЬ';
+  dec.onclick=()=>dmCallDecline();
+  acc.onclick=()=>dmCallAccept();
+  br.append(dec,acc); box.append(t,tx,br); w.append(box); document.body.append(w);
+  incModal=w;
+  C.incoming.timer=setTimeout(()=>{ if(C.incoming&&C.incoming.pid===pid) dmCallDecline(); },30000);
+}
+function dmCallEnd(note,silent){
+  const c=C.dm; if(!c) return;
+  C.dm=null;
+  if(!silent){
+    const d=findDialog(c.pid);
+    if(d&&d.pub) dmSendEnc(c.pid,{t:'call-end'});
+  }
+  toneStop();
+  if(c.ring) clearTimeout(c.ring);
+  if(c.timer) clearInterval(c.timer);
+  try{ c.room.removeStream(c.stream); }catch(e){}
+  try{ c.stream.getTracks().forEach(t=>t.stop()); }catch(e){}
+  if(c.el){ try{ c.el.srcObject=null; }catch(e){} }
+  $('dm-callbar').classList.add('hidden');
+  if(note) toast(note);
+}
+async function onDmCallReq(f,env,key){
+  let p=null; try{ p=await unseal(key,env.p); }catch(e){}
+  if(!p||p.t!=='call') return;
+  if(C.dm||C.room||C.incoming){ dmDeclineTo(f,{b:1}); return; }
+  const d=findDialog(f);
+  const req=S.requests.find(x=>x.pid===f);
+  const known=(d&&(!d.pub||(env.k&&d.pub.x===env.k.x&&d.pub.y===env.k.y)))||
+              (req&&(!req.pub||(env.k&&req.pub.x===env.k.x&&req.pub.y===env.k.y)));
+  if(!known){ dmDeclineTo(f,{}); return; }
+  showIncoming(f,(d&&d.nick)||(req&&req.nick)||f);
+}
+
+/* ---- групповой голосовой звонок в комнате ---- */
+async function roomCallToggle(){
+  const r=S.room; if(!r) return;
+  if(C.room){ roomCallEnd('Вы покинули звонок'); return; }
+  if(C.dm||C.incoming){ toast('Линия занята: идёт личный звонок'); return; }
+  let stream;
+  try{ stream=await getMic(); }catch(e){ toast('Микрофон недоступен: разрешите доступ (нужен https)'); return; }
+  C.room={stream,muted:false,els:new Map(),t0:Date.now(),timer:null};
+  pushCallStream(r.room,stream,'room');
+  for(const [tpid,st] of r.rstreams) roomRemoteAttach(tpid,st);
+  $('room-callbar').classList.remove('hidden');
+  $('room-call-mute').textContent='МИКРОФОН: ВКЛ';
+  $('btn-call').textContent='ВЫЙТИ ИЗ ЗВОНКА';
+  r.log.push({kind:'sys',text:'Вы вошли в звонок'}); renderRoomLog();
+  $('room-call-t').textContent='ЗВОНОК · '+(1+r.rstreams.size)+' · 0:00';
+  C.room.timer=setInterval(()=>{ if(C.room&&S.room) $('room-call-t').textContent='ЗВОНОК · '+(1+S.room.rstreams.size)+' · '+fmtDur(Date.now()-C.room.t0); },500);
+  renderMembers();
+}
+function roomRemoteAttach(tpid,stream){
+  if(!C.room||C.room.els.has(tpid)) return;
+  const el=new Audio(); el.autoplay=true;
+  try{ el.srcObject=stream; el.play().catch(()=>{}); }catch(e){}
+  C.room.els.set(tpid,el);
+}
+function roomRemoteDetach(tpid){
+  if(!C.room) return;
+  const el=C.room.els.get(tpid);
+  if(el){ try{ el.srcObject=null; }catch(e){} C.room.els.delete(tpid); }
+}
+function roomCallEnd(note){
+  const c=C.room; if(!c) return;
+  C.room=null;
+  if(c.timer) clearInterval(c.timer);
+  if(S.room){
+    S.room.log.push({kind:'sys',text:'Вы покинули звонок'});
+    try{ S.room.room.removeStream(c.stream); }catch(e){}
+    renderRoomLog();
+  }
+  try{ c.stream.getTracks().forEach(t=>t.stop()); }catch(e){}
+  for(const [,el] of c.els){ try{ el.srcObject=null; }catch(e){} }
+  c.els.clear();
+  $('room-callbar').classList.add('hidden');
+  $('btn-call').textContent='ЗВОНОК';
+  if(S.room) renderMembers();
+  if(note) toast(note);
+}
+function onCallPeerGone(tpid){
+  const r=S.room; if(!r||!r.rstreams.has(tpid)) return;
+  r.rstreams.delete(tpid); roomRemoteDetach(tpid);
+  const m=r.members.get(tpid);
+  r.log.push({kind:'sys',text:(m?m.nick:'Участник')+' покинул звонок'});
+  renderRoomLog(); renderMembers();
+}
+
+/* ---- удаление личного чата (у себя / у всех) ---- */
+function deleteDialogRemote(pid,note){
+  const d=findDialog(pid); if(!d) return;
+  for(const rec of d.files.values()){
+    if(rec.url){ try{ URL.revokeObjectURL(rec.url); }catch(e){} }
+    if(rec.imgUrl&&rec.imgUrl!==rec.url){ try{ URL.revokeObjectURL(rec.imgUrl); }catch(e){} }
+  }
+  if(C.dm&&C.dm.pid===pid) dmCallEnd(null,true);
+  closeDmChannel(pid);
+  S.dialogs=S.dialogs.filter(x=>x.pid!==pid);
+  S.requests=S.requests.filter(x=>x.pid!==pid); saveRequests();
+  saveDialogs();
+  if(S.curDm===pid){ S.curDm=null; renderDms(); showScreen('scr-menu',true); }
+  renderDms();
+  if(note) toast(note);
+}
+function deleteDialog(pid,wipe){
+  const d=findDialog(pid); if(!d) return;
+  (async()=>{
+    let sent=false;
+    if(wipe&&d.pub) sent=await dmSendReliable(pid,d.pub,{t:'wipe'},()=>!!findDialog(pid));
+    deleteDialogRemote(pid,null);
+    toast(wipe?(sent?'Чат удалён у вас и у собеседника':'Чат удалён у вас (собеседник не получил команду)'):'Чат удалён');
+  })();
+}
+async function dmMoreMenu(){
+  const d=curDialog(); if(!d) return;
+  const v=await modalBox('ДЕЙСТВИЯ С ЧАТОМ',[
+    {l:'УДАЛИТЬ У СЕБЯ',v:'del'},
+    {l:'УДАЛИТЬ У ВСЕХ',v:'wipe'},
+    {l:'ЗАБЛОКИРОВАТЬ',v:'block'},
+    {l:'ОТМЕНА',v:null}
+  ]);
+  if(v==='del'){
+    const ok=await confirmBox('Удалить чат у себя? История на этом устройстве будет потеряна.','УДАЛИТЬ');
+    if(ok&&findDialog(d.pid)) deleteDialog(d.pid,false);
+  }else if(v==='wipe'){
+    const ok=await confirmBox('Чат будет удалён у вас и у собеседника (если он в сети). Продолжить?','УДАЛИТЬ');
+    if(ok&&findDialog(d.pid)) deleteDialog(d.pid,true);
+  }else if(v==='block'){ blockUser(d.pid,d.nick); }
+}
+
 /* ---------------- НАВИГАЦИЯ ЭКРАНОВ ---------------- */
 function showScreen(id,back){
   const cur=document.querySelector('.screen.active');
@@ -965,6 +1253,8 @@ function joinPreview(idRaw){
   if(!T.mod){ toast('Библиотека ещё загружается, попробуйте через секунду'); return; }
   const id=fmtId(idRaw);
   if(!validId(id)){ joinMsg('Введите ID в формате XXX-XXX'); return; }
+  if(S.room&&S.room.id===id){ showScreen('scr-room'); return; }   /* уже в этой комнате — просто показываем */
+  if(S.room) leaveRoom();                                          /* смена комнаты — старую закрываем */
   cancelJoin(); joinResetUi(); joinMsg('ПОИСК КОМНАТЫ...');
   const room=T.mod.joinRoom({appId:APP_ID},nsRoom(id));
   const acts={ ri:mkAct(room,'ri'), ok:mkAct(room,'ok'), x:mkAct(room,'x'), rb:mkAct(room,'rb') };
@@ -1047,14 +1337,29 @@ function cancelJoin(){
 /* ---------------- СОСТОЯНИЕ КОМНАТЫ ---------------- */
 function mkRoomState(o){
   return { id:o.id, name:o.name, room:o.room, acts:o.acts, key:o.key, password:o.password||'',
-    members:new Map(), log:[], files:new Map(), owner:!!o.owner,
+    members:new Map(), log:[], files:new Map(), rstreams:new Map(), owner:!!o.owner,
     public:store.get('pub_'+o.id,false), okBlob:null, annTimer:null, watch:null };
 }
 /* единая регистрация обработчиков на экземпляре комнаты (жизненный цикл: предпросмотр -> вход -> чат) */
 function wireRoomInstance(room,acts){
   wireRoomDispatchers(acts);
+  room.onPeerStream=(stream,tpid)=>{
+    const r=S.room; if(!r||r.room!==room) return;
+    const first=!r.rstreams.has(tpid);
+    r.rstreams.set(tpid,stream);
+    try{ stream.addEventListener('removetrack',()=>{ if(stream.getTracks().length===0) onCallPeerGone(tpid); }); }catch(e){}
+    if(first){ const m=r.members.get(tpid); r.log.push({kind:'sys',text:(m?m.nick:'Участник')+' присоединился к звонку'}); renderRoomLog(); }
+    if(C.room) roomRemoteAttach(tpid,stream);
+    renderMembers();
+  };
   const w=watchPeers(room,
-    ()=>{ if(S.js&&S.js.stage==='preview'){ try{acts.ri.send({})}catch(e){} } },
+    tpid=>{
+      if(S.js&&S.js.stage==='preview'){ try{acts.ri.send({})}catch(e){} }
+      /* участник вошёл, пока идёт звонок — доставляем ему наш поток (с повторами) */
+      if(C.room&&S.room&&S.room.room===room){
+        pushCallStream(room,C.room.stream,'room');
+      }
+    },
     tpid=>onRoomPeerLeave(tpid));
   if(S.js) S.js.watch=w; else if(S.room&&S.room.room===room) S.room.watch=w;
 }
@@ -1110,12 +1415,13 @@ function startAnnounce(){
 }
 function leaveRoom(){
   const r=S.room; if(!r) return;
+  roomCallEnd(null);
   try{ r.watch&&r.watch.stop(); }catch(e){}
   try{ r.room.leave(); }catch(e){}
   if(r.annTimer) clearInterval(r.annTimer);
   /* освобождаем память: blob-URL файлов этой комнаты */
   for(const rec of r.files.values()){ if(rec.url){ try{URL.revokeObjectURL(rec.url)}catch(e){} } }
-  S.room=null; previewCache=new Map(); renderRooms();
+  S.room=null; previewCache=new Map(); renderRooms(); closeMembersPanel();
 }
 function collides(nick,pid){
   if(!S.room) return false;
@@ -1156,6 +1462,14 @@ async function onRoomMsg(p,tpid){
       const m=r.members.get(tpid); if(m) showRoomTyping(m.nick);
       break;
     }
+    case 'rdel':{
+      if(!S.room) break;
+      const rid=r.id;
+      toast('Комната удалена владельцем');
+      roomCallEnd(null); leaveRoom(); forgetRoom(rid);
+      showScreen('scr-menu',true);
+      break;
+    }
     case 'fmeta': onRoomFmeta(p,tpid); break;
     case 'fack':{
       const rec=r.files.get(p.id>>>0);
@@ -1175,8 +1489,10 @@ async function onRoomMsg(p,tpid){
 function onRoomPeerLeave(tpid){
   const r=S.room; if(!r) return;
   const m=r.members.get(tpid); if(!m) return;
+  const inCall=r.rstreams.delete(tpid);
+  roomRemoteDetach(tpid);
   r.members.delete(tpid);
-  r.log.push({kind:'sys',text:m.nick+'#'+sfxOf(m.pid)+' вышел'});
+  r.log.push({kind:'sys',text:m.nick+'#'+sfxOf(m.pid)+' вышел'+(inCall?' (из звонка)':'')});
   renderRoomLog(); renderMembers(); announceToLobby();
 }
 function onRoomFmeta(p,tpid){
@@ -1350,6 +1666,7 @@ function renderRoomUi(){
   const r=S.room; if(!r) return;
   $('room-name').textContent=(r.name||r.id).toUpperCase();
   $('room-public-row').classList.toggle('hidden',!r.owner);
+  $('room-destroy').classList.toggle('hidden',!r.owner);
   $('room-public').checked=r.public;
   renderMembers(); renderRoomLog();
 }
@@ -1419,13 +1736,16 @@ function renderMembers(){
   const nicks={};
   list.forEach(m=>nicks[m.nick]=(nicks[m.nick]||0)+1);
   nicks[S.nick]=(nicks[S.nick]||0)+1;
+  const micSvg='<svg class="callic" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
   let html='<div class="mem"><span class="sq on"></span><span class="mem-nick">'+esc(S.nick)+'</span>'+
-    '<span class="sfx muted">#'+esc(sfxOf(S.pid))+'</span><span class="muted small">(вы)</span></div>';
-  list.forEach((m,i)=>{
+    '<span class="sfx muted">#'+esc(sfxOf(S.pid))+'</span><span class="muted small">(вы)</span>'+(C.room?micSvg:'')+'</div>';
+  let i=0;
+  for(const [tpid,m] of r.members){
     html+='<div class="mem stag" style="animation-delay:'+Math.min(i,9)*30+'ms" data-pid="'+esc(m.pid)+'">'+
       '<span class="sq on"></span><span class="mem-nick">'+esc(m.nick)+'</span>'+
-      '<span class="sfx muted">#'+esc(sfxOf(m.pid))+'</span></div>';
-  });
+      '<span class="sfx muted">#'+esc(sfxOf(m.pid))+'</span>'+(r.rstreams.has(tpid)?micSvg:'')+'</div>';
+    i++;
+  }
   $('room-members-list').innerHTML=html;
   $('room-sub').textContent=r.id+' · '+(list.length+1)+' В СЕТИ'+(r.public?' · В СПИСКЕ':'');
 }
@@ -1457,6 +1777,8 @@ const isBlocked=pid=>S.blocked.some(b=>b.pid===pid);
 function blockUser(pid,nick){
   if(isBlocked(pid)){ toast('Уже заблокирован'); return; }
   S.blocked.push({pid,nick:nick||''}); saveBlocked();
+  if(C.dm&&C.dm.pid===pid) dmCallEnd(null,true);
+  if(C.incoming&&C.incoming.pid===pid) incomingClose();
   if(S.curDm===pid){ S.curDm=null; showScreen('scr-menu',true); }
   closeDmChannel(pid); renderDms(); renderProfile();
   toast('Заблокирован: '+pid);
@@ -1493,8 +1815,13 @@ setInterval(()=>{ /* неактивные каналы закрываем чер
 function wireDmChan(ch){
   ch.acts.dm.onMessage(env=>onDmEnvelope(env));
   ch.acts.db.onMessage(pack=>onDmChunk(pack));
+  ch.room.onPeerStream=(stream,tpid)=>{
+    ch.remStream=stream;
+    if(C.dm&&C.dm.room===ch.room){ C.dm.rem=stream; dmRemoteAttach(); }
+  };
   ch.watch=watchPeers(ch.room,
-    ()=>{ ch.last=Date.now(); if(ch.pid!=='@self') dmPeerChanged(ch.pid); },
+    ()=>{ ch.last=Date.now(); if(ch.pid!=='@self') dmPeerChanged(ch.pid);
+          if(C.dm&&C.dm.room===ch.room) pushCallStream(ch.room,C.dm.stream,'dm'); },
     ()=>{ if(ch.pid!=='@self') dmPeerChanged(ch.pid); });
 }
 function chanSend(pid,envObj){
@@ -1514,8 +1841,13 @@ function chanBin(pid,fid,idx,pack){
 async function dmSendEnc(pid,obj){
   const d=findDialog(pid);
   if(!d||!d.pub) return false;
+  return dmSendKey(pid,d.pub,obj);
+}
+/* посылка по известному публичному ключу (даже если диалог ещё не создан) */
+async function dmSendKey(pid,jwk,obj){
   try{
-    const key=await deriveDmKey(d.pub);
+    const key=await deriveDmKey(jwk);
+    if(!key) return false;
     chanSend(pid,{v:1,t:obj.t,f:S.pid,n:S.nick,k:S.pubJwk,p:await seal(key,obj)});
     return true;
   }catch(e){ return false; }
@@ -1544,6 +1876,36 @@ async function onDmEnvelope(env){
       case 'fmeta': await onDmFmeta(f,env,key); break;
       case 'fack': { const p=await unseal(key,env.p); if(p&&d){ const rec=d.files.get((p.id>>>0)); if(rec&&rec.role==='send'){ const i=p.i|0; if(!rec.acks.has(i)){ rec.acks.add(i); rec.window.delete(i); rec.last=Date.now(); pumpSend(rec); } } } break; }
       case 'fcancel': { const p=await unseal(key,env.p); if(p&&d){ const rec=d.files.get(p.id>>>0); if(rec&&rec.active) fileFail(rec,'Отменено'); } break; }
+      case 'call':     await onDmCallReq(f,env,key); break;
+      case 'call-acc': {
+        const dd=findDialog(f);
+        if(!env.p||!env.k||!dd||!dd.pub||env.k.x!==dd.pub.x||env.k.y!==dd.pub.y) break;
+        const p=await unseal(key,env.p);
+        if(p&&C.dm&&C.dm.pid===f&&C.dm.dir==='out'&&!C.dm.answered){ C.dm.answered=true; if(C.dm.ring) clearTimeout(C.dm.ring); toneStop(); dmCallTimerStart(); }
+        break;
+      }
+      case 'call-dec': {
+        const dd=findDialog(f);
+        if(!env.p||!env.k||!dd||!dd.pub||env.k.x!==dd.pub.x||env.k.y!==dd.pub.y) break;
+        const p=await unseal(key,env.p);
+        if(p&&C.dm&&C.dm.pid===f&&C.dm.dir==='out'){ dmCallEnd(null,true); toast(p.b?'Собеседник занят':'Звонок отклонён'); }
+        if(p&&C.incoming&&C.incoming.pid===f){ incomingClose(); toast('Вызов отменён'); }
+        break;
+      }
+      case 'call-end': {
+        const dd=findDialog(f);
+        if(!env.p||!env.k||!dd||!dd.pub||env.k.x!==dd.pub.x||env.k.y!==dd.pub.y) break;
+        const p=await unseal(key,env.p);
+        if(p&&C.dm&&C.dm.pid===f) dmCallEnd('Собеседник завершил звонок',true);
+        break;
+      }
+      case 'wipe': {
+        const dd=findDialog(f);
+        if(!dd||!env.k||!dd.pub||env.k.x!==dd.pub.x||env.k.y!==dd.pub.y) break;
+        const p=await unseal(key,env.p);
+        if(p&&p.t==='wipe') deleteDialogRemote(f,'Собеседник удалил чат');
+        break;
+      }
     }
   }catch(e){}
 }
@@ -1559,7 +1921,11 @@ async function onDmHello(f,env){
     const r=S.requests.find(x=>x.pid===f); if(r&&!r.pub) r.pub=env.k; saveRequests();
   }
   /* отвечаем hey: даём свой публичный ключ, чтобы собеседник мог шифровать */
-  try{ chanSend(f,{v:1,t:'hey',f:S.pid,n:S.nick,k:S.pubJwk}); }catch(e){}
+  (async()=>{
+    const ch=ensureDmChannel(f);
+    if(ch) await waitDmPeer(ch,10);
+    try{ chanSend(f,{v:1,t:'hey',f:S.pid,n:S.nick,k:S.pubJwk}); }catch(e){}
+  })();
   if(d){ d.online=null; dmPing(f); }
 }
 async function onDmPm(f,env,key){
@@ -1664,11 +2030,16 @@ function openDm(pid,nick,pub){
   showScreen('scr-dm');
   if(d.pub) dmPing(pid);
 }
-/* запрос на переписку: заход в ящик адресата + конверт hi */
+/* запрос на переписку: заход в ящик адресата + конверт hi (ждём подключения канала — иначе посылка теряется) */
 function sendDmRequest(d){
   if(d.helloSent) return;
   d.helloSent=true;
-  try{ chanSend(d.pid,{v:1,t:'hi',f:S.pid,n:S.nick,k:S.pubJwk}); }catch(e){}
+  (async()=>{
+    const ch=ensureDmChannel(d.pid);
+    if(ch) await waitDmPeer(ch,10);
+    if(!findDialog(d.pid)) return;
+    try{ chanSend(d.pid,{v:1,t:'hi',f:S.pid,n:S.nick,k:S.pubJwk}); }catch(e){}
+  })();
 }
 async function sendDmMessage(){
   const d=curDialog(); if(!d) return;
@@ -1681,7 +2052,7 @@ async function sendDmMessage(){
   renderDmLog();
   const deliver=async ()=>{
     if(!d.pub){ d.outbox.push({id,text}); armDmAckTimer(d,id); return; }
-    const ok=await dmSendEnc(d.pid,{t:'pm',id,text,ts:Date.now()});
+    const ok=await dmSendReliable(d.pid,d.pub,{t:'pm',id,text,ts:Date.now()});
     if(ok){ d.pendingMsgId=id; armDmAckTimer(d,id); }
     else dmSys(d,'Пользователь не в сети. Сообщение не доставлено.');
   };
@@ -1700,7 +2071,7 @@ async function flushOutbox(d){
   if(!d||!d.outbox||!d.outbox.length) return;
   const q=d.outbox.splice(0);
   for(const m of q){
-    const ok=await dmSendEnc(d.pid,{t:'pm',id:m.id,text:m.text,ts:Date.now()});
+    const ok=await dmSendReliable(d.pid,d.pub,{t:'pm',id:m.id,text:m.text,ts:Date.now()});
     if(ok){ d.pendingMsgId=m.id; armDmAckTimer(d,m.id); }
     else dmSys(d,'Пользователь не в сети. Сообщение не доставлено.');
   }
@@ -1744,6 +2115,7 @@ function renderDmHeader(){
   const d=curDialog(); if(!d) return;
   $('dm-name').innerHTML=esc(d.nick)+'<span class="sfx muted">#'+esc(sfxOf(d.pid))+'</span>';
   $('dm-sub').textContent=d.pid;
+  $('dm-call').disabled=!d.pub;
   renderDmStatus(d); renderFingerprint(d); renderDmReqCard();
 }
 function renderDmStatus(d){
@@ -1811,6 +2183,7 @@ function renderProfile(){
 async function resetPersonalId(){
   const ok=await confirmBox('Старый ID перестанет работать, контакты потеряют вас. Продолжить?','СБРОСИТЬ');
   if(!ok) return;
+  if(C.dm) dmCallEnd(null,true);
   S.pid=randId(6); store.set('pid',S.pid);
   try{ const kp=await ensureKeys(true); S.pubJwk=kp.pub; S.privJwk=kp.priv; S.dmkCache.clear(); }catch(e){}
   for(const pid of [...S.chans.keys()]) closeDmChannel(pid);   /* закрыть личные каналы */
@@ -1915,7 +2288,27 @@ function bindUi(){
   };
   /* комната */
   $('room-back').onclick=()=>{ leaveRoom(); showScreen('scr-menu',true); };
-  $('btn-call').onclick=()=>toast('Звонки появятся позже');  /* архитектура готова к getUserMedia */
+  $('btn-call').onclick=()=>roomCallToggle();
+  $('room-call-drop').onclick=()=>roomCallEnd('Вы покинули звонок');
+  $('room-call-mute').onclick=()=>{
+    if(!C.room) return;
+    const t=C.room.stream.getAudioTracks()[0]; if(!t) return;
+    t.enabled=!t.enabled; $('room-call-mute').textContent='МИКРОФОН: '+(t.enabled?'ВКЛ':'ВЫКЛ');
+  };
+  $('room-forget').onclick=async()=>{
+    if(!S.room) return;
+    const ok=await confirmBox('Выйти и забыть комнату на этом устройстве?','ЗАБЫТЬ');
+    if(!ok||!S.room) return;
+    const rid=S.room.id; leaveRoom(); forgetRoom(rid); showScreen('scr-menu',true); toast('Комната забыта');
+  };
+  $('room-destroy').onclick=async()=>{
+    if(!S.room) return;
+    const ok=await confirmBox('Комната будет удалена у всех, кто сейчас в ней, и из вашего списка. Продолжить?','УДАЛИТЬ');
+    if(!ok||!S.room) return;
+    const r=S.room,rid=r.id;
+    try{ await encSend(r.acts.x,r.key,{t:'rdel'}); }catch(e){}  /* отправляем ДО закрытия комнаты */
+    roomCallEnd(null); leaveRoom(); forgetRoom(rid); showScreen('scr-menu',true); toast('Комната удалена');
+  };
   $('btn-members').onclick=()=>{ $('room-members').classList.add('open'); $('room-backdrop').classList.add('show'); };
   $('members-close').onclick=closeMembersPanel;
   $('room-backdrop').onclick=closeMembersPanel;
@@ -1938,6 +2331,14 @@ function bindUi(){
   bindDnd('room-chatmain','room-drop');
   /* личные чаты */
   $('dm-back').onclick=()=>{ S.curDm=null; renderDms(); showScreen('scr-menu',true); };
+  $('dm-call').onclick=()=>{ if(C.dm) dmCallEnd('Звонок завершён'); else dmCallStart(); };
+  $('dm-more').onclick=()=>dmMoreMenu();
+  $('dm-call-drop').onclick=()=>dmCallEnd('Звонок завершён');
+  $('dm-call-mute').onclick=()=>{
+    if(!C.dm) return;
+    const t=C.dm.stream.getAudioTracks()[0]; if(!t) return;
+    t.enabled=!t.enabled; $('dm-call-mute').textContent='МИКРОФОН: '+(t.enabled?'ВКЛ':'ВЫКЛ');
+  };
   $('dm-send').onclick=sendDmMessage;
   $('dm-attach').onclick=()=>$('dm-file').click();
   $('dm-file').addEventListener('change',e=>{ const f=e.target.files[0]; const d=curDialog(); if(f&&d) sendFile(f,{type:'dm',dialog:d}); e.target.value=''; });
@@ -2019,10 +2420,10 @@ function startNet(){ if(netUp||!T.mod) return; netUp=true; joinLobby(); openDmIn
   }catch(e){ fatal('Ошибка запуска: '+((e&&e.message)||e)); }
 })();
 /* после выгрузки страницы соединения закрываются сами; история и blob-URL освобождаются */
-addEventListener('pagehide',()=>{ if(S.room) leaveRoom(); for(const pid of [...S.chans.keys()]) closeDmChannel(pid); });
+addEventListener('pagehide',()=>{ if(C.dm) dmCallEnd(null,true); if(C.room) roomCallEnd(null); if(S.room) leaveRoom(); for(const pid of [...S.chans.keys()]) closeDmChannel(pid); });
 
 /* Доступ для автотестов (на работу не влияет) */
-window.__skyle={S,showScreen,renderRoomLog,renderDmLog,renderDmHeader,renderMembers,renderDms,renderRooms,renderPublic,renderProfile,applyTheme,esc,sfxOf};
+window.__skyle={S,C,showScreen,renderRoomLog,renderDmLog,renderDmHeader,renderMembers,renderDms,renderRooms,renderPublic,renderProfile,applyTheme,esc,sfxOf,deleteDialog};
 </script>
 </body>
 </html>
