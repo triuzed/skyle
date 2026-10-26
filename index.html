@@ -8,18 +8,172 @@
 <title>Skyle — P2P мессенджер</title>
 <link rel="icon" href="data:,">
 <script>
-/* Тема применяется ДО отрисовки, чтобы не было мигания */
-(function(){try{var t=JSON.parse(localStorage.getItem('skyle_theme')||'"auto"');
-if(t!=='light'&&t!=='dark'){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}
-document.documentElement.dataset.theme=t;}catch(e){document.documentElement.dataset.theme='light';}})();
+/* Тема и скин применяются ДО отрисовки, чтобы не мигало.
+   Здесь же живёт валидатор скинов (SSM) — модуль переиспользует его из window.skyleSkin.
+   Скин может менять ТОЛЬКО значения переменных из белого списка: произвольный CSS/JS невозможен. */
+(function(){
+'use strict';
+/* белый список переменных и их типов */
+var VARS={
+  '--bg':'color','--fg':'color','--muted':'color','--line':'color','--line-soft':'color',
+  '--panel':'color','--panel-2':'color','--inv-bg':'color','--inv-fg':'color',
+  '--accent':'color','--accent-fg':'color',
+  '--msg-own-bg':'color','--msg-own-fg':'color','--msg-peer-bg':'color','--msg-peer-fg':'color',
+  '--topbar-bg':'color','--topbar-fg':'color',
+  '--radius':'len:0:64','--radius-lg':'len:0:64',
+  '--font-size':'len:8:28','--border-width':'len:0:6','--blur':'len:0:32',
+  '--font':'font',
+  '--shadow':'shadow','--shadow-strong':'shadow','--glow':'shadow',
+  '--panel-alpha':'alpha',
+  '--bg-image':'bgimage','--bg-size':'bgsize','--bg-attachment':'bgattach'
+};
+/* безопасные системные шрифтовые стеки: в скине указывается КОРОТКОЕ ИМЯ из списка */
+var FONTS={
+  'mono':'ui-monospace,"SF Mono",Consolas,"Liberation Mono",monospace',
+  'system':'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif',
+  'sans':'Arial,Helvetica,sans-serif',
+  'serif':'Georgia,"Times New Roman",Times,serif',
+  'courier':'"Courier New",Courier,monospace',
+  'rounded':'"Trebuchet MS",Tahoma,sans-serif'
+};
+function bad(v){ /* всё, что может вынести значение за пределы безопасных типов */
+  return /[\\;{}<>@]|\/\*|\*\//.test(v)||/expression|javascript:|behavior|binding|-moz-binding/i.test(v);
+}
+function isColor(v){
+  if(/^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v)) return true;
+  var m=v.match(/^(rgba?|hsla?)\(([^()]*)\)$/i);
+  if(!m) return false;
+  var p=m[2].split(/[,\/\s]+/).filter(Boolean);
+  return p.length>=3&&p.length<=4&&p.every(function(x){ return /^\d*\.?\d+%?(deg|turn)?$/i.test(x); });
+}
+function isLen(v,min,max){
+  var m=v.match(/^(\d*\.?\d+)(px|rem|em)$/i);
+  if(!m) return v==='0';
+  var n=parseFloat(m[1])*(m[2].toLowerCase()==='px'?1:16);
+  return n>=min&&n<=max;
+}
+function shadowSafe(v){
+  if(v==='none') return true;
+  if(bad(v)||/url\(/i.test(v)) return false;
+  var t=v.replace(/(rgba?|hsla?)\([^()]*\)/gi,' C ')
+         .replace(/#[0-9a-f]{3,8}/gi,' C ')
+         .replace(/\b(inset|transparent|currentcolor)\b/gi,' K ')
+         .replace(/-?\d*\.?\d+(px|rem|em)?/gi,' N ');
+  return /^[\s,CKN]+$/i.test(t);
+}
+function gradSafe(v){
+  var t=v.replace(/(rgba?|hsla?)\([^()]*\)/gi,' C ')
+         .replace(/#[0-9a-f]{3,8}/gi,' C ')
+         .replace(/\b(to|top|bottom|left|right|circle|ellipse|closest-side|closest-corner|farthest-side|farthest-corner|at|transparent|currentcolor)\b/gi,' K ')
+         .replace(/-?[\d.]+(deg|grad|rad|turn|%|px|rem|em)?/gi,' N ');
+  return /^[\s,CKN()]+$/i.test(t);
+}
+function isBgImage(v){
+  if(v==='none') return true;
+  if(/^(linear|radial)-gradient\(/i.test(v)){
+    if(!/\)\s*$/.test(v)) return false;
+    return !bad(v)&&gradSafe(v.replace(/^(linear|radial)-gradient\(/i,'('));
+  }
+  /* фон-картинка: только data:image/png|jpeg|webp;base64 до 1 МБ, никаких внешних URL */
+  var m=v.match(/^url\(\s*(['"]?)(data:image\/(?:png|jpe?g|webp);base64,[a-z0-9+\/=]+)\1\s*\)$/i);
+  var raw=m?m[2]:(/^data:image\/(?:png|jpe?g|webp);base64,[a-z0-9+\/=]+$/i.test(v)?v:null);
+  if(!raw) return false;
+  return raw.length<=1400000; /* ~1 МБ после раскодировки base64 */
+}
+/* возвращает каноничное значение для setProperty либо null (запрет) */
+function checkVal(k,val){
+  if(val==null) return null;
+  var v=String(val).trim();
+  if(!v) return null;
+  var t=VARS[k];
+  if(!t) return null;
+  if(t==='bgimage'){
+    if(!isBgImage(v)) return null;
+    return /^data:/i.test(v)?'url('+v+')':v;   /* чистый data-URI сами оборачиваем в url() */
+  }
+  if(v.length>5000||bad(v)) return null;
+  if(t==='color') return isColor(v)?v:null;
+  if(t.indexOf('len:')===0){ var p=t.split(':'); return isLen(v,+p[1],+p[2])?v:null; }
+  if(t==='font'){ var f=FONTS[v.toLowerCase()]; return f||null; }
+  if(t==='shadow') return shadowSafe(v)?v:null;
+  if(t==='alpha'){ var n=Number(v); return isFinite(n)&&n>=0&&n<=1?String(n):null; }
+  if(t==='bgsize') return /^(auto|contain|cover)$/.test(v)||/^\d*\.?\d+(px|%|em|rem|vw|vh)?(\s+\d*\.?\d+(px|%|em|rem|vw|vh)?)?$/.test(v)?v:null;
+  if(t==='bgattach') return /^(scroll|fixed|local)$/i.test(v)?v.toLowerCase():null;
+  return null;
+}
+function validate(skin){
+  if(!skin||typeof skin!=='object'||Array.isArray(skin)) return {ok:false,error:'ожидался JSON-объект'};
+  if(skin.ssm!==1) return {ok:false,error:'не тот формат: нужно поле "ssm":1'};
+  if(typeof skin.name!=='string'||!skin.name.trim()||skin.name.length>40) return {ok:false,error:'нет имени скина или оно длиннее 40 символов'};
+  if(skin.author!=null&&(typeof skin.author!=='string'||skin.author.length>40)) return {ok:false,error:'поле "author" длиннее 40 символов'};
+  if(skin.mode!=='light'&&skin.mode!=='dark') return {ok:false,error:'поле "mode" должно быть light или dark'};
+  if(!skin.vars||typeof skin.vars!=='object'||Array.isArray(skin.vars)) return {ok:false,error:'нет секции "vars"'};
+  var out={},n=0;
+  for(var k in skin.vars){
+    if(!Object.prototype.hasOwnProperty.call(skin.vars,k)) continue;
+    if(!VARS[k]) continue; /* посторонние ключи молча игнорируем */
+    var val=checkVal(k,skin.vars[k]);
+    if(val==null) return {ok:false,error:'переменная '+k+' — недопустимое значение'};
+    out[k]=val; n++;
+  }
+  if(!n) return {ok:false,error:'в "vars" нет ни одной поддерживаемой переменной'};
+  var res={ssm:1,name:skin.name.trim().slice(0,40),mode:skin.mode,vars:out};
+  if(typeof skin.author==='string'&&skin.author.trim()) res.author=skin.author.trim().slice(0,40);
+  return {ok:true,skin:res};
+}
+/* применение ТОЛЬКО через inline-стили корня: никаких <style> и innerHTML */
+function apply(skin){
+  var st=document.documentElement.style;
+  Object.keys(VARS).forEach(function(k){ st.removeProperty(k); });
+  if(skin&&skin.vars) Object.keys(skin.vars).forEach(function(k){ if(VARS[k]) st.setProperty(k,skin.vars[k]); });
+}
+/* скин из ссылки #skin=<base64url(JSON)> */
+function fromHash(s){
+  if(!s||s.length>2100000) return null;
+  try{
+    var b=s.replace(/-/g,'+').replace(/_/g,'/');
+    while(b.length%4) b+='=';
+    var bin=atob(b), u=new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i);
+    var v=validate(JSON.parse(new TextDecoder().decode(u)));
+    return v.ok?v.skin:null;
+  }catch(e){ return null; }
+}
+window.skyleSkin={VARS:VARS,validate:validate,apply:apply,fromHash:fromHash};
+/* --- раннее применение сохранённой темы и скина --- */
+try{
+  var t=JSON.parse(localStorage.getItem('skyle_theme')||'"auto"');
+  var skin=null;
+  try{ skin=JSON.parse(localStorage.getItem('skyle_customSkin')||'null'); }catch(e){}
+  if(t==='skin') t=(skin&&skin.vars&&skin.mode==='dark')?'dark':'light';
+  if(t!=='light'&&t!=='dark'){ t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'; }
+  document.documentElement.dataset.theme=t;
+  if(skin&&skin.vars){ var vr=validate(skin); if(vr.ok) apply(vr.skin); }
+}catch(e){ try{ document.documentElement.dataset.theme='light'; }catch(e2){} }
+})();
 </script>
 <style>
-/* ============ ТЕМЫ: только чёрный, белый и серый ============ */
+/* ============ ТЕМЫ И СКИНЫ: всё оформление через переменные ============ */
 :root{
+  /* базовые цвета (по умолчанию — только чёрный, белый и серый) */
   --bg:#ffffff; --fg:#000000; --muted:#6e6e6e;
   --line:#000000; --line-soft:#d9d9d9;
   --panel:#f2f2f2; --panel-2:#e4e4e4;
   --inv-bg:#000000; --inv-fg:#ffffff;
+  --accent:#000000; --accent-fg:#ffffff;
+  --msg-own-bg:transparent; --msg-own-fg:var(--fg);
+  --msg-peer-bg:transparent; --msg-peer-fg:var(--fg);
+  --topbar-bg:var(--inv-bg); --topbar-fg:var(--inv-fg);
+  --overlay:rgba(0,0,0,.5);          /* затемнение под модалками (в белый список скинов не входит) */
+  /* форма, рамки, типографика */
+  --radius:0; --radius-lg:0;
+  --font:ui-monospace,"SF Mono",Consolas,"Liberation Mono",monospace;
+  --font-size:14px;
+  --border-width:1px;
+  /* эффекты и фон */
+  --shadow:none; --shadow-strong:none; --glow:none;
+  --blur:0px; --panel-alpha:1;
+  --bg-image:none; --bg-size:auto; --bg-attachment:scroll;
   --cubic:cubic-bezier(.2,.8,.2,1);
 }
 [data-theme="dark"]{
@@ -27,13 +181,16 @@ document.documentElement.dataset.theme=t;}catch(e){document.documentElement.data
   --line:#ffffff; --line-soft:#2b2b2b;
   --panel:#141414; --panel-2:#202020;
   --inv-bg:#ffffff; --inv-fg:#000000;
+  --accent:#ffffff; --accent-fg:#000000;
+  --msg-own-fg:var(--fg); --msg-peer-fg:var(--fg);
+  --topbar-bg:var(--inv-bg); --topbar-fg:var(--inv-fg);
 }
-*{box-sizing:border-box;margin:0;padding:0;border-radius:0 !important}
+*{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{
   background:var(--bg); color:var(--fg);
-  font-family:ui-monospace,"SF Mono",Consolas,"Liberation Mono",monospace;
-  font-size:14px; line-height:1.45; overflow:hidden;
+  font-family:var(--font);
+  font-size:var(--font-size); line-height:1.45; overflow:hidden;
   transition:background-color .2s var(--cubic), color .2s var(--cubic);
 }
 button,input,textarea{font-family:inherit}
@@ -45,7 +202,11 @@ button,input,textarea{font-family:inherit}
 /* ============ КАРКАС ЭКРАНОВ ============ */
 .app{position:fixed;inset:0;height:var(--app-h,100dvh);overflow:hidden}
 .screen{
-  position:absolute;inset:0;display:flex;flex-direction:column;background:var(--bg);
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  background-color:var(--bg);
+  background-image:var(--bg-image);
+  background-size:var(--bg-size);
+  background-attachment:var(--bg-attachment);
   opacity:0;visibility:hidden;transform:translateX(16px);
   transition:opacity .22s var(--cubic),transform .22s var(--cubic),visibility 0s .22s;
 }
@@ -58,70 +219,74 @@ button,input,textarea{font-family:inherit}
 /* ============ ВЕРХНЯЯ ПАНЕЛЬ (инвертированная) ============ */
 .topbar{
   display:flex;align-items:center;gap:6px;min-height:48px;padding:0 6px;flex:none;
-  background:var(--inv-bg);color:var(--inv-fg);
+  background:var(--topbar-bg);color:var(--topbar-fg);
   transition:background-color .2s var(--cubic),color .2s var(--cubic);
 }
 .logo{font-weight:700;letter-spacing:.3em;font-size:14px;padding:0 8px}
 .btn-top{
   border:none;background:transparent;color:inherit;font-size:12px;letter-spacing:.1em;
-  min-height:44px;padding:0 8px;cursor:pointer;white-space:nowrap;
+  min-height:44px;padding:0 8px;cursor:pointer;white-space:nowrap;border-radius:var(--radius);
   transition:background-color .12s var(--cubic),color .12s var(--cubic),transform .12s var(--cubic);
 }
-.btn-top:hover{background:var(--inv-fg);color:var(--inv-bg)}
+.btn-top:hover{background:var(--topbar-fg);color:var(--topbar-bg)}
 .btn-top:active{transform:scale(.98)}
 .btn-top:disabled{opacity:.4;cursor:default}
 .btn-top:disabled:hover{background:transparent;color:inherit}
+/* кнопка «СОЗДАТЬ СВОЙ СКИН»: на узких экранах сокращается до «СКИН» */
+#skin-btn .skin-long{display:inline}
+#skin-btn .skin-short{display:none}
 .tb-title{display:flex;flex-direction:column;line-height:1.25;min-width:0;padding:6px 0}
 .tb-title .t1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;letter-spacing:.08em}
 .tb-title .t2{opacity:.7;font-size:10px;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* ============ КНОПКИ И ПОЛЯ ============ */
 .btn{
-  appearance:none;background:transparent;border:1px solid var(--fg);color:var(--fg);
-  font-size:12px;letter-spacing:.08em;min-height:44px;padding:0 14px;cursor:pointer;
+  appearance:none;background:transparent;border:var(--border-width) solid var(--fg);color:var(--fg);
+  font-size:12px;letter-spacing:.08em;min-height:44px;padding:0 14px;cursor:pointer;border-radius:var(--radius);
   transition:background-color .12s var(--cubic),color .12s var(--cubic),transform .12s var(--cubic);
 }
 .btn:hover{background:var(--fg);color:var(--bg)}
 .btn:active{transform:scale(.98)}
 .btn:disabled{opacity:.35;cursor:default}
 .btn:disabled:hover{background:transparent;color:var(--fg)}
-.btn-primary{background:var(--fg);color:var(--bg)}
-.btn-primary:hover{background:var(--bg);color:var(--fg)}
+.btn-primary{background:var(--accent);color:var(--accent-fg);box-shadow:var(--glow)}
+.btn-primary:hover{background:var(--accent-fg);color:var(--accent)}
 .btn-mini{padding:0 10px;font-size:11px}
 .btn-icon{
   min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;
-  border:1px solid var(--fg);background:transparent;color:var(--fg);cursor:pointer;flex:none;
+  border:var(--border-width) solid var(--fg);background:transparent;color:var(--fg);cursor:pointer;flex:none;
+  border-radius:var(--radius);
   transition:background-color .12s var(--cubic),color .12s var(--cubic),transform .12s var(--cubic);
 }
 .btn-icon:hover{background:var(--fg);color:var(--bg)}
 .btn-icon:active{transform:scale(.98)}
 .inp{
-  width:100%;background:transparent;border:1px solid var(--fg);color:var(--fg);
-  font-size:16px;padding:10px 12px;min-height:44px;resize:none;
+  width:100%;background:transparent;border:var(--border-width) solid var(--fg);color:var(--fg);
+  font-size:16px;padding:10px 12px;min-height:44px;resize:none;border-radius:var(--radius);
 }
-.inp:focus{outline:2px solid var(--fg);outline-offset:-2px}
+.inp:focus{outline:2px solid var(--accent);outline-offset:-2px}
 textarea.inp{max-height:120px}
 .chk{display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;font-size:12px;letter-spacing:.06em}
-.chk input{width:16px;height:16px;accent-color:var(--fg);flex:none}
+.chk input{width:16px;height:16px;accent-color:var(--accent);flex:none}
 .lbl{font-size:11px;letter-spacing:.12em;color:var(--muted);margin:14px 0 6px}
-.h{font-size:12px;letter-spacing:.14em;margin:18px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.h{font-size:12px;letter-spacing:.14em;margin:18px 0 8px;padding-bottom:4px;border-bottom:var(--border-width) solid var(--line)}
 .note{font-size:11px;color:var(--muted);margin:8px 0;line-height:1.5}
-.errline{border:1px solid var(--fg);padding:8px 10px;margin:10px 0;font-size:12px;line-height:1.5}
+.errline{border:var(--border-width) solid var(--fg);padding:8px 10px;margin:10px 0;font-size:12px;line-height:1.5;border-radius:var(--radius)}
 .bigid{font-size:30px;letter-spacing:.18em;padding:16px 0;text-align:center;font-weight:700;word-break:break-all}
 .inline-row{display:flex;gap:8px;align-items:flex-start}
 .inline-row .inp{flex:1}
 .inline-row .btn{flex:none}
 /* ============ ВКЛАДКИ И СПИСКИ ============ */
-.tabs{display:flex;border-bottom:1px solid var(--line);flex:none}
+.tabs{display:flex;border-bottom:var(--border-width) solid var(--line);flex:none}
 .tab{
-  flex:1;min-height:44px;background:transparent;border:none;border-right:1px solid var(--line);
+  flex:1;min-height:44px;background:transparent;border:none;border-right:var(--border-width) solid var(--line);
   color:var(--fg);font-size:11px;letter-spacing:.06em;cursor:pointer;
   transition:background-color .12s var(--cubic),color .12s var(--cubic);
 }
 .tab:last-child{border-right:none}
-.tab.on{background:var(--fg);color:var(--bg)}
+.tab.on{background:var(--accent);color:var(--accent-fg)}
 .tabbody{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-height:0}
 .list{flex:none}
-.row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line-soft)}
+.row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:var(--border-width) solid var(--line-soft)}
 .row-main{flex:1;min-width:0}
 .row-t{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .row-s{margin-top:2px;display:flex;align-items:center;gap:6px}
@@ -129,15 +294,16 @@ textarea.inp{max-height:120px}
 .menu-actions{margin-top:auto;padding:10px;display:flex;gap:8px;flex-wrap:wrap}
 .menu-actions .btn{flex:1;min-width:140px}
 .empty{
-  display:block;width:100%;min-height:44px;padding:16px;margin:10px 0;border:1px solid var(--line);
+  display:block;width:100%;min-height:44px;padding:16px;margin:10px 0;border:var(--border-width) solid var(--line);
   background:transparent;color:var(--muted);text-align:center;cursor:pointer;font-size:12px;letter-spacing:.08em;
+  border-radius:var(--radius);
   transition:background-color .12s var(--cubic),color .12s var(--cubic);
 }
 .empty:hover{background:var(--fg);color:var(--bg)}
 .stag{animation:itemIn .2s var(--cubic) both}
 .unread{font-weight:700}
 .pop{animation:pop .18s var(--cubic)}
-.req{border:1px solid var(--line);padding:10px;margin:8px}
+.req{border:var(--border-width) solid var(--line);padding:10px;margin:8px;border-radius:var(--radius)}
 .req-t{font-size:12px;letter-spacing:.06em}
 .req-b{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .req-b .btn{flex:1;min-width:110px}
@@ -147,63 +313,67 @@ textarea.inp{max-height:120px}
 .msglist{flex:1;overflow-y:auto;padding:10px 0;-webkit-overflow-scrolling:touch}
 .msg{
   padding:2px 12px;animation:msgIn .2s var(--cubic) both;
-  word-break:break-word;white-space:pre-wrap;overflow-wrap:anywhere;
+  word-break:break-word;white-space:pre-wrap;overflow-wrap:anywhere;border-radius:var(--radius);
 }
-.msg.self{border-left:2px solid var(--fg);margin-left:6px;padding-left:10px}
+.msg.self{border-left:2px solid var(--accent);margin-left:6px;padding-left:10px;background:var(--msg-own-bg);color:var(--msg-own-fg)}
+.msg.peer{background:var(--msg-peer-bg);color:var(--msg-peer-fg)}
 .msg.sys{color:var(--muted);text-align:center;font-size:12px;white-space:normal}
 .mtime{color:var(--muted);font-size:12px}
 .sfx{font-size:11px}
-.fp{padding:6px 12px;border-bottom:1px solid var(--line-soft);letter-spacing:.06em;flex:none}
-.hint{padding:4px 12px;font-size:10px;letter-spacing:.08em;color:var(--muted);border-top:1px solid var(--line-soft);flex:none}
+.fp{padding:6px 12px;border-bottom:var(--border-width) solid var(--line-soft);letter-spacing:.06em;flex:none}
+.hint{padding:4px 12px;font-size:10px;letter-spacing:.08em;color:var(--muted);border-top:var(--border-width) solid var(--line-soft);flex:none}
 .typing{display:flex;align-items:center;gap:4px;padding:4px 12px;flex:none}
-.tdot{width:6px;height:6px;background:var(--fg);animation:tpulse 1s infinite}
+.tdot{width:6px;height:6px;background:var(--accent);animation:tpulse 1s infinite}
 .tdot:nth-child(2){animation-delay:.2s}
 .tdot:nth-child(3){animation-delay:.4s}
-.inputrow{display:flex;gap:6px;padding:8px;border-top:1px solid var(--line);align-items:flex-end;flex:none}
+.inputrow{display:flex;gap:6px;padding:8px;border-top:var(--border-width) solid var(--line);align-items:flex-end;flex:none}
 .inputrow textarea{flex:1}
 /* ============ ФАЙЛЫ ============ */
-.file{display:block;border:1px solid var(--line);padding:8px;margin:6px 0;max-width:440px}
+.file{display:block;border:var(--border-width) solid var(--line);padding:8px;margin:6px 0;max-width:440px;border-radius:var(--radius)}
 .f-head{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .f-head .ico{flex:none}
 .f-name{word-break:break-all}
-.bar{display:block;height:10px;border:1px solid var(--line);margin-top:6px}
-.fill{display:block;height:100%;background:var(--fg);width:0;transition:width .15s linear}
+.bar{display:block;height:10px;border:var(--border-width) solid var(--line);margin-top:6px;border-radius:var(--radius);overflow:hidden}
+.fill{display:block;height:100%;background:var(--accent);width:0;transition:width .15s linear}
 .f-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px}
-.f-img{display:block;border:1px solid var(--line);max-width:280px;max-height:200px;margin-top:6px}
+.f-img{display:block;border:var(--border-width) solid var(--line);max-width:280px;max-height:200px;margin-top:6px;border-radius:var(--radius)}
 .dropzone{
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:40;
-  background:var(--bg);border:1px solid var(--fg);font-size:14px;letter-spacing:.1em;
+  background:var(--bg);border:var(--border-width) solid var(--fg);font-size:14px;letter-spacing:.1em;
+  border-radius:var(--radius-lg);
 }
 /* ============ УЧАСТНИКИ ============ */
-.members{width:260px;flex:none;border-left:1px solid var(--line);display:flex;flex-direction:column;background:var(--bg);min-height:0}
-.members-head{display:flex;align-items:center;gap:6px;padding:4px 8px;border-bottom:1px solid var(--line);font-size:12px;letter-spacing:.12em;flex:none}
+.members{width:260px;flex:none;border-left:var(--border-width) solid var(--line);display:flex;flex-direction:column;background:var(--bg);min-height:0}
+.members-head{display:flex;align-items:center;gap:6px;padding:4px 8px;border-bottom:var(--border-width) solid var(--line);font-size:12px;letter-spacing:.12em;flex:none}
 .members-head .btn-top{margin-left:auto}
 #room-members-list{flex:1;overflow-y:auto}
-.pubrow{padding:8px 10px;border-bottom:1px solid var(--line-soft)}
-.mem{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 10px;border-bottom:1px solid var(--line-soft);cursor:pointer}
-.mem:hover{background:var(--panel)}
-.sq{width:10px;height:10px;border:1px solid currentColor;flex:none;display:inline-block}
+.pubrow{padding:8px 10px;border-bottom:var(--border-width) solid var(--line-soft)}
+.mem{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 10px;border-bottom:var(--border-width) solid var(--line-soft);cursor:pointer}
+.mem:hover{background:color-mix(in srgb,var(--panel) calc(var(--panel-alpha)*100%),transparent)}
+.sq{width:10px;height:10px;border:var(--border-width) solid currentColor;flex:none;display:inline-block}
 .sq.on{background:currentColor}
 .backdrop{
-  position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:30;border:none;
+  position:fixed;inset:0;background:var(--overlay);z-index:30;border:none;
+  backdrop-filter:blur(var(--blur));
   opacity:0;visibility:hidden;transition:opacity .22s var(--cubic),visibility 0s .22s;
 }
 .backdrop.show{opacity:1;visibility:visible;transition:opacity .22s var(--cubic)}
 /* ============ ТОСТЫ И МОДАЛКИ ============ */
 #toasts{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;gap:6px;width:min(94vw,480px);pointer-events:none}
 .toast{
-  border:1px solid var(--fg);background:var(--bg);padding:10px 12px;font-size:12px;line-height:1.5;
+  border:var(--border-width) solid var(--fg);background:var(--bg);padding:10px 12px;font-size:12px;line-height:1.5;
+  border-radius:var(--radius);box-shadow:var(--shadow);
   animation:toastIn .22s var(--cubic);transition:opacity .2s,transform .2s;pointer-events:auto;
 }
-.modal{position:fixed;inset:0;z-index:110;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);padding:16px}
-.modal-box{background:var(--bg);border:1px solid var(--fg);max-width:440px;width:100%;padding:16px}
+.modal{position:fixed;inset:0;z-index:110;display:flex;align-items:center;justify-content:center;background:var(--overlay);padding:16px}
+.modal-box{background:var(--bg);border:var(--border-width) solid var(--fg);max-width:440px;width:100%;padding:16px;border-radius:var(--radius-lg);box-shadow:var(--shadow-strong);backdrop-filter:blur(var(--blur))}
 .modal-text{font-size:13px;line-height:1.5;white-space:pre-wrap}
 .modal-btns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
 .modal-btns .btn{flex:1}
 /* окно «Что нового?» (whatsnew.md) */
 @keyframes wnIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .modal.wn-in{animation:wnIn .2s var(--cubic) both}
-.wn-title{font-size:12px;letter-spacing:.14em;font-weight:700;padding-bottom:8px;border-bottom:1px solid var(--fg)}
+.wn-title{font-size:12px;letter-spacing:.14em;font-weight:700;padding-bottom:8px;border-bottom:var(--border-width) solid var(--fg)}
 .wn-body{font-size:13px;line-height:1.55;margin-top:10px;max-height:min(56vh,420px);overflow:auto;overscroll-behavior:contain}
 .wn-body h1,.wn-body h2,.wn-body h3{font-weight:700;margin:14px 0 4px;letter-spacing:.04em}
 .wn-body h1:first-child,.wn-body h2:first-child,.wn-body h3:first-child{margin-top:2px}
@@ -213,24 +383,24 @@ textarea.inp{max-height:120px}
 .wn-body p{margin:8px 0}
 .wn-body ul,.wn-body ol{margin:8px 0;padding-left:18px}
 .wn-body li{margin:3px 0}
-.wn-body hr{border:0;border-top:1px solid var(--line-soft);margin:12px 0}
-.wn-body code{border:1px solid var(--line-soft);padding:0 4px}
-.wn-body pre{border:1px solid var(--line-soft);padding:8px 10px;overflow:auto;font-size:12px;line-height:1.5;white-space:pre}
+.wn-body hr{border:0;border-top:var(--border-width) solid var(--line-soft);margin:12px 0}
+.wn-body code{border:var(--border-width) solid var(--line-soft);padding:0 4px;border-radius:var(--radius)}
+.wn-body pre{border:var(--border-width) solid var(--line-soft);padding:8px 10px;overflow:auto;font-size:12px;line-height:1.5;white-space:pre;border-radius:var(--radius)}
 .wn-body a{color:var(--fg);text-decoration:underline}
-.wn-body blockquote{border-left:2px solid var(--fg);margin:8px 0;padding:2px 0 2px 10px;color:var(--muted)}
+.wn-body blockquote{border-left:2px solid var(--accent);margin:8px 0;padding:2px 0 2px 10px;color:var(--muted)}
 /* звонки */
-.callbar{display:flex;align-items:center;gap:8px;border:1px solid var(--fg);padding:4px 10px;margin:8px 10px 0;flex:none;animation:wnIn .2s var(--cubic) both}
+.callbar{display:flex;align-items:center;gap:8px;border:var(--border-width) solid var(--fg);padding:4px 10px;margin:8px 10px 0;flex:none;border-radius:var(--radius);box-shadow:var(--glow);animation:wnIn .2s var(--cubic) both}
 .callbar .call-t{font-size:12px;letter-spacing:.1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .callic{display:inline-flex;margin-left:6px;flex:none}
 /* ============ СЕГМЕНТЫ (тема) ============ */
-.seg{display:flex;border:1px solid var(--fg)}
+.seg{display:flex;border:var(--border-width) solid var(--fg);border-radius:var(--radius);overflow:hidden}
 .seg-btn{
-  flex:1;min-height:44px;background:transparent;border:none;border-right:1px solid var(--fg);
+  flex:1;min-height:44px;background:transparent;border:none;border-right:var(--border-width) solid var(--fg);
   color:var(--fg);font-size:11px;letter-spacing:.06em;cursor:pointer;
   transition:background-color .12s var(--cubic),color .12s var(--cubic);
 }
 .seg-btn:last-child{border-right:none}
-.seg-btn.on{background:var(--fg);color:var(--bg)}
+.seg-btn.on{background:var(--accent);color:var(--accent-fg)}
 /* ============ АНИМАЦИИ ============ */
 @keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes itemIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -239,6 +409,8 @@ textarea.inp{max-height:120px}
 @keyframes tpulse{0%,100%{opacity:.15}50%{opacity:1}}
 /* ============ МОБИЛЬНАЯ ВЕРСИЯ ============ */
 @media (max-width:699px){
+  #skin-btn .skin-long{display:none}
+  #skin-btn .skin-short{display:inline}
   .members{
     position:fixed;top:0;right:0;bottom:0;width:min(320px,85vw);z-index:40;
     transform:translateX(103%);transition:transform .22s var(--cubic);
@@ -288,6 +460,7 @@ textarea.inp{max-height:120px}
 <section class="screen" id="scr-menu">
   <div class="topbar">
     <span class="logo">SKYLE</span><span class="flex-sp"></span>
+    <button class="btn-top" id="skin-btn" title="Конструктор скинов SSM" aria-label="СОЗДАТЬ СВОЙ СКИН"><span class="skin-long">СОЗДАТЬ СВОЙ СКИН</span><span class="skin-short">СКИН</span></button>
     <button class="btn-top" id="theme-btn">ТЕМА: АВТО</button>
     <button class="btn-top" id="profile-btn">ПРОФИЛЬ</button>
   </div>
@@ -519,7 +692,19 @@ textarea.inp{max-height:120px}
       <button class="seg-btn" data-mode="light">СВЕТЛАЯ</button>
       <button class="seg-btn" data-mode="dark">ТЁМНАЯ</button>
       <button class="seg-btn" data-mode="auto">АВТО</button>
+      <button class="seg-btn" data-mode="skin">СВОЙ СКИН</button>
     </div>
+
+    <div class="h">СКИН</div>
+    <div class="note" id="skin-name">ТЕКУЩИЙ СКИН: —</div>
+    <input type="file" id="skin-file" accept=".json,application/json" hidden>
+    <div class="inline-row">
+      <button class="btn" id="skin-import">ИМПОРТ СКИНА (JSON)</button>
+      <button class="btn" id="skin-reset">СБРОСИТЬ СКИН</button>
+    </div>
+    <div class="lbl">ИЛИ ВСТАВЬТЕ JSON</div>
+    <textarea class="inp" id="skin-json" rows="4" spellcheck="false" autocomplete="off" placeholder='{"ssm":1,"name":"Aero","mode":"light","vars":{"--bg":"#d8ebff","--radius":"10px"}}'></textarea>
+    <button class="btn wide" id="skin-apply">ПРИМЕНИТЬ</button>
 
     <div class="h">ЗВУК НОВЫХ СООБЩЕНИЙ</div>
     <button class="btn wide" id="sound-btn">ЗВУК: ВКЛ</button>
@@ -575,7 +760,7 @@ const S={
   dmkCache:new Map(),                         // кэш ключей ECDH
 };
 let previewCache=new Map();                   // id -> {name,count,ts}
-let netUp=false, fileSeq=0, lastTypSent=0;
+let netUp=false, fileSeq=0, roomTypSent=0, dmTypSent=0;
 let roomTypTimer=null, dmTypTimer=null;
 
 /* ---------------- ХРАНИЛИЩЕ (localStorage в try/catch) ---------------- */
@@ -630,32 +815,90 @@ function watchPeers(room,onJoin,onLeave){
    mkAct приводит оба вида к единому интерфейсу {send, onMessage}. */
 function mkAct(room,name){
   const quiet=p=>{ if(p&&typeof p.catch==='function') p.catch(()=>{}); }; /* ранние посылки до открытия канала — глушим отказы */
+  /* бинарные данные приходят как ArrayBuffer (binaryType='arraybuffer') — приводим к Uint8Array,
+     иначе хендлеры с .length/.subarray (например, приём файлов в ЛС) молча падают */
+  const norm=d=>d instanceof ArrayBuffer?new Uint8Array(d):d;
   const a=room.makeAction(name);
   if(Array.isArray(a)){
     return { send:(d,t)=>{ try{ quiet(t==null?a[0](d):a[0](d,t)); }catch(e){} },
-             onMessage:cb=>a[1]((d,p)=>cb(d,p)) };
+             onMessage:cb=>a[1]((d,p)=>cb(norm(d),p)) };
   }
   return { send:(d,t)=>{ try{ quiet(t==null?a.send(d):a.send(d,{target:t})); }catch(e){} },
-           onMessage:cb=>{ a.onMessage=(d,m)=>cb(d,(m&&m.peerId!==undefined)?m.peerId:m); } };
+           onMessage:cb=>{ a.onMessage=(d,m)=>cb(norm(d),(m&&m.peerId!==undefined)?m.peerId:m); } };
 }
 
-/* ---------------- ТЕМА ---------------- */
+/* ---------------- ТЕМА И СКИН ---------------- */
 function applyTheme(){
   let t=store.get('theme','auto');
+  if(t==='skin'){ /* режим «СВОЙ СКИН»: базу light/dark подсказывает сам скин */
+    const sk=store.get('customSkin',null);
+    t=(sk&&sk.vars&&sk.mode==='dark')?'dark':'light';
+  }
   if(t!=='light'&&t!=='dark') t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
   document.documentElement.dataset.theme=t;
   const mc=document.querySelector('meta[name="theme-color"]');
-  if(mc) mc.content=(t==='dark'?'#000000':'#ffffff');
+  if(mc){ /* цвет статус-бара берём из текущего --bg (скин может его менять) */
+    let c='';
+    try{ c=getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(); }catch(e){}
+    mc.content=c||(t==='dark'?'#000000':'#ffffff');
+  }
 }
 function renderThemeUi(){
   const m=store.get('theme','auto');
   document.querySelectorAll('.seg-btn').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
-  $('theme-btn').textContent='ТЕМА: '+({light:'СВЕТЛАЯ',dark:'ТЁМНАЯ',auto:'АВТО'}[m]||'АВТО');
+  $('theme-btn').textContent='ТЕМА: '+({light:'СВЕТЛАЯ',dark:'ТЁМНАЯ',auto:'АВТО',skin:'СВОЙ СКИН'}[m]||'АВТО');
 }
-function setThemeMode(m){ store.set('theme',m); applyTheme(); renderThemeUi(); }
+function setThemeMode(m){
+  store.set('theme',m);
+  if(m==='skin'&&!store.get('customSkin',null)) toast('Скин ещё не задан — импортируйте его в профиле');
+  applyTheme(); renderThemeUi();
+}
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{
   if(store.get('theme','auto')==='auto') applyTheme();
 });
+
+/* ---------------- СКИНЫ (SSM: только белый список переменных, без произвольного CSS) ---------------- */
+async function importSkinText(text){
+  if(text.length>1500000){ toast('JSON скина больше 1,5 МБ'); return false; }
+  let obj=null;
+  try{ obj=JSON.parse(text); }catch(e){ toast('Скин не применён: это не корректный JSON'); return false; }
+  const v=(window.skyleSkin&&window.skyleSkin.validate)?window.skyleSkin.validate(obj):{ok:false,error:'валидатор недоступен'};
+  if(!v.ok){ toast('Скин не применён: '+v.error); return false; }
+  const ok=await confirmBox('Применить скин «'+v.skin.name+'»?','ПРИМЕНИТЬ');
+  if(!ok) return false;
+  store.set('customSkin',v.skin);
+  window.skyleSkin.apply(v.skin);
+  applyTheme(); renderThemeUi(); renderProfile();
+  toast('Скин применён: '+v.skin.name);
+  return true;
+}
+function resetSkin(){
+  store.del('customSkin');
+  if(window.skyleSkin) window.skyleSkin.apply(null);
+  if(store.get('theme','auto')==='skin') setThemeMode('auto');
+  else{ applyTheme(); renderThemeUi(); }
+  renderProfile();
+  toast('Скин сброшен: стандартное оформление');
+}
+let skinHashBusy=false;
+async function handleSkinHash(){
+  const m=(location.hash||'').match(/^#skin=([A-Za-z0-9_\-]+)$/);
+  if(!m) return;
+  history.replaceState(null,'',location.pathname+location.search); /* чтобы ссылка не срабатывала при каждом обновлении */
+  if(skinHashBusy) return;
+  skinHashBusy=true;
+  try{
+    const skin=window.skyleSkin?window.skyleSkin.fromHash(m[1]):null;
+    if(!skin){ toast('Ссылка на скин повреждена или слишком велика'); return; }
+    const ok=await confirmBox('Применить скин «'+skin.name+'»?','ПРИМЕНИТЬ');
+    if(ok){
+      store.set('customSkin',skin);
+      window.skyleSkin.apply(skin);
+      applyTheme(); renderThemeUi(); renderProfile();
+      toast('Скин применён: '+skin.name);
+    }
+  }finally{ skinHashBusy=false; }
+}
 
 /* ---------------- ЗВУК (WebAudio) ---------------- */
 let audioCtx=null;
@@ -1525,7 +1768,7 @@ function sendMessage(){
 function roomTypingPing(){
   if(!S.room) return;
   const n=Date.now();
-  if(n-lastTypSent>1800){ lastTypSent=n; encSend(S.room.acts.x,S.room.key,{t:'typ'}); }
+  if(n-roomTypSent>1800){ roomTypSent=n; encSend(S.room.acts.x,S.room.key,{t:'typ'}); }
 }
 function showRoomTyping(nick){
   if(!S.room) return;
@@ -1570,8 +1813,8 @@ async function sendFile(file,ctx){
     else{ d.files.set(rec.fid,rec); d.log.push(entry); renderDmLog(); }
     rec.buf=new Uint8Array(await file.arrayBuffer());
     const meta={t:'fmeta',id:rec.fid,name:rec.name,size:rec.size,mime:rec.mime,chunks:rec.chunks};
-    if(isRoom) encSend(S.room.acts.x,key,meta);
-    else{ const ok=await dmSendEnc(d.pid,meta); if(!ok){ fileFail(rec,'Отправка прервана'); return; } }
+    if(isRoom) await encSend(S.room.acts.x,key,meta); /* метаданные уходят строго раньше чанков */
+    else{ const ok=await dmSendReliable(d.pid,d.pub,meta); if(!ok){ fileFail(rec,'Отправка прервана'); return; } }
     pumpSend(rec);
   }catch(e){ toast('Не удалось отправить файл'); }
 }
@@ -1676,7 +1919,7 @@ function msgHtml(m){
   let inner;
   if(m.kind==='file') inner=fileNodeHtml(m.rec);
   else inner=esc(m.text);
-  return '<div class="msg'+(m.self?' self':'')+'"><span class="mtime">['+esc(m.time)+']</span> <b>'+who+':</b> '+inner+'</div>';
+  return '<div class="msg '+(m.self?'self':'peer')+'"><span class="mtime">['+esc(m.time)+']</span> <b>'+who+':</b> '+inner+'</div>';
 }
 function fileNodeHtml(rec){
   let act='';
@@ -1829,11 +2072,13 @@ function chanSend(pid,envObj){
   if(!ch) throw new Error('нет канала');
   ch.acts.dm.send(envObj); ch.last=Date.now();
 }
-/* бинарный пакет личного канала: [pid 7б][fileId 4б][index 4б][IV||шифртекст] */
+/* бинарный пакет личного канала: [pid отправителя 7б][fileId 4б][index 4б][IV||шифртекст].
+   В заголовке ИМЕННО отправитель: получатель ищет по нему свой диалог и проверяет блокировку.
+   (Раньше тут писали pid адресата — получатель отбрасывал чанк как «свой», файлы в ЛС не доходили.) */
 function chanBin(pid,fid,idx,pack){
   const ch=ensureDmChannel(pid); if(!ch) throw new Error('нет канала');
   const head=new Uint8Array(15); const dv=new DataView(head.buffer);
-  for(let i=0;i<7;i++) head[i]=pid.charCodeAt(i);
+  for(let i=0;i<7;i++) head[i]=S.pid.charCodeAt(i);
   dv.setUint32(7,fid>>>0); dv.setUint32(11,idx>>>0);
   ch.acts.db.send(catBytes(head,pack)); ch.last=Date.now();
 }
@@ -2080,7 +2325,7 @@ function dmSys(d,text){ d.log.push({kind:'sys',text}); if(S.curDm===d.pid) rende
 function dmTypingPing(){
   const d=curDialog(); if(!d||!d.pub) return;
   const n=Date.now();
-  if(n-lastTypSent>1800){ lastTypSent=n; dmSendEnc(d.pid,{t:'typ',ts:n}); }
+  if(n-dmTypSent>1800){ dmTypSent=n; dmSendEnc(d.pid,{t:'typ',ts:n}); }
 }
 function showDmTyping(){
   $('dm-typing').classList.remove('hidden');
@@ -2172,6 +2417,8 @@ function renderProfile(){
   $('prof-id').textContent=S.pid;
   $('sound-btn').textContent='ЗВУК: '+(store.get('sound',true)?'ВКЛ':'ВЫКЛ');
   renderThemeUi();
+  const sk=store.get('customSkin',null);
+  $('skin-name').textContent='ТЕКУЩИЙ СКИН: '+((sk&&sk.name)?sk.name:'—')+((sk&&sk.author)?' · АВТОР: '+sk.author:'');
   const bl=$('blocked-list');
   if(!S.blocked.length){ bl.innerHTML='<div class="note" style="padding:4px 0">СПИСОК ПУСТ.</div>'; return; }
   bl.innerHTML=S.blocked.map(b=>
@@ -2242,10 +2489,11 @@ function bindUi(){
     b.addEventListener('click',()=>{ if(b.dataset.back==='scr-join') cancelJoin(); showScreen(b.dataset.back,true); }));
   $('profile-btn').onclick=()=>{ renderProfile(); showScreen('scr-profile'); };
   $('theme-btn').onclick=()=>{
-    const order=['light','dark','auto'];
+    const order=['light','dark','auto','skin'];
     const cur=store.get('theme','auto');
     setThemeMode(order[(order.indexOf(cur)+1)%order.length]);
   };
+  $('skin-btn').onclick=()=>{ try{ window.open('https://triuzed.github.io/skyle/SSM','_blank','noopener,noreferrer'); }catch(e){} };
   document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
     S.tab=t.dataset.tab;
     document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
@@ -2393,6 +2641,21 @@ function bindUi(){
     S.blocked=S.blocked.filter(x=>x.pid!==b.dataset.unblock);
     saveBlocked(); renderProfile(); toast('Разблокирован: '+b.dataset.unblock);
   });
+  /* скины: файл, вставка JSON, сброс, ссылка #skin= */
+  $('skin-import').onclick=()=>$('skin-file').click();
+  $('skin-file').addEventListener('change',async e=>{
+    const f=e.target.files[0]; e.target.value='';
+    if(!f) return;
+    if(f.size>1500000){ toast('Файл скина больше 1,5 МБ'); return; }
+    try{ await importSkinText(await f.text()); }catch(err){ toast('Не удалось прочитать файл скина'); }
+  });
+  $('skin-apply').onclick=()=>{
+    const v=$('skin-json').value.trim();
+    if(!v){ toast('Вставьте JSON скина'); return; }
+    importSkinText(v);
+  };
+  $('skin-reset').onclick=resetSkin;
+  addEventListener('hashchange',handleSkinHash);
 }
 function closeMembersPanel(){ $('room-members').classList.remove('open'); $('room-backdrop').classList.remove('show'); }
 
@@ -2414,6 +2677,7 @@ function startNet(){ if(netUp||!T.mod) return; netUp=true; joinLobby(); openDmIn
     $('setup-id').textContent=S.pid;
     if(!S.nick) showScreen('scr-setup'); else showScreen('scr-menu');
     setTimeout(showWhatsnew,350); /* окно «Что нового?» при входе на сайт */
+    setTimeout(handleSkinHash,700); /* ссылка #skin=<base64url> — применяем только с согласия */
     await loadTrystero();
     renderRooms(); renderPublic(); renderDms(); renderProfile();
     if(S.nick) startNet();
