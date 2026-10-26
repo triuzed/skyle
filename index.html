@@ -200,6 +200,24 @@ textarea.inp{max-height:120px}
 .modal-text{font-size:13px;line-height:1.5;white-space:pre-wrap}
 .modal-btns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
 .modal-btns .btn{flex:1}
+/* окно «Что нового?» (whatsnew.md) */
+@keyframes wnIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.modal.wn-in{animation:wnIn .2s var(--cubic) both}
+.wn-title{font-size:12px;letter-spacing:.14em;font-weight:700;padding-bottom:8px;border-bottom:1px solid var(--fg)}
+.wn-body{font-size:13px;line-height:1.55;margin-top:10px;max-height:min(56vh,420px);overflow:auto;overscroll-behavior:contain}
+.wn-body h1,.wn-body h2,.wn-body h3{font-weight:700;margin:14px 0 4px;letter-spacing:.04em}
+.wn-body h1:first-child,.wn-body h2:first-child,.wn-body h3:first-child{margin-top:2px}
+.wn-body h1{font-size:17px}
+.wn-body h2{font-size:14px}
+.wn-body h3{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.wn-body p{margin:8px 0}
+.wn-body ul,.wn-body ol{margin:8px 0;padding-left:18px}
+.wn-body li{margin:3px 0}
+.wn-body hr{border:0;border-top:1px solid var(--line-soft);margin:12px 0}
+.wn-body code{border:1px solid var(--line-soft);padding:0 4px}
+.wn-body pre{border:1px solid var(--line-soft);padding:8px 10px;overflow:auto;font-size:12px;line-height:1.5;white-space:pre}
+.wn-body a{color:var(--fg);text-decoration:underline}
+.wn-body blockquote{border-left:2px solid var(--fg);margin:8px 0;padding:2px 0 2px 10px;color:var(--muted)}
 /* ============ СЕГМЕНТЫ (тема) ============ */
 .seg{display:flex;border:1px solid var(--fg)}
 .seg-btn{
@@ -587,12 +605,13 @@ function watchPeers(room,onJoin,onLeave){
    [send, get, onProgress], новые — объект {send, onMessage, onReceiveProgress}.
    mkAct приводит оба вида к единому интерфейсу {send, onMessage}. */
 function mkAct(room,name){
+  const quiet=p=>{ if(p&&typeof p.catch==='function') p.catch(()=>{}); }; /* ранние посылки до открытия канала — глушим отказы */
   const a=room.makeAction(name);
   if(Array.isArray(a)){
-    return { send:(d,t)=>t==null?a[0](d):a[0](d,t),
+    return { send:(d,t)=>{ try{ quiet(t==null?a[0](d):a[0](d,t)); }catch(e){} },
              onMessage:cb=>a[1]((d,p)=>cb(d,p)) };
   }
-  return { send:(d,t)=>t==null?a.send(d):a.send(d,{target:t}),
+  return { send:(d,t)=>{ try{ quiet(t==null?a.send(d):a.send(d,{target:t})); }catch(e){} },
            onMessage:cb=>{ a.onMessage=(d,m)=>cb(d,(m&&m.peerId!==undefined)?m.peerId:m); } };
 }
 
@@ -713,6 +732,66 @@ async function fingerprint(a,b){
   const [p,q]=ka<kb?[ka,kb]:[kb,ka];
   const h=await crypto.subtle.digest('SHA-256',enc.encode(p+'|'+q));
   return [...new Uint8Array(h)].slice(0,4).map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+
+/* ---------------- ЧТО НОВОГО? (whatsnew.md рядом со страницей) ---------------- */
+/* Безопасный мини-markdown: сначала esc(), затем разметка; ссылки только http(s) */
+function renderMarkdown(src){
+  const lines=String(src||'').replace(/\r\n?/g,'\n').split('\n').map(esc);
+  let out='',para=[],list=null,code=null;
+  const flushP=()=>{ if(para.length){ out+='<p>'+inline(para.join(' '))+'</p>'; para=[]; } };
+  const flushL=()=>{ if(list){ out+='</'+list+'>'; list=null; } };
+  const inline=t=>t
+    .replace(/`([^`]+)`/g,(m,x)=>'<code>'+x+'</code>')
+    .replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>')
+    .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g,'$1<i>$2</i>')
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,(m,txt,url)=>
+      /^https?:\/\//i.test(url)?'<a href="'+url+'" target="_blank" rel="noopener noreferrer">'+txt+'</a>':m);
+  for(let i=0;i<lines.length;i++){
+    const L=lines[i]; let m;
+    if(code!==null){
+      if(/^```/.test(L)){ out+='<pre>'+code+'</pre>'; code=null; }
+      else code+=(code?'\n':'')+L;
+      continue;
+    }
+    if(/^```/.test(L)){ flushP(); flushL(); code=''; continue; }
+    if(/^\s*$/.test(L)){ flushP(); flushL(); continue; }
+    if((m=L.match(/^(#{1,3})\s+(.*)$/))){ flushP(); flushL(); out+='<h'+m[1].length+'>'+inline(m[2])+'</h'+m[1].length+'>'; continue; }
+    if(/^\s*(-{3,}|\*{3,})\s*$/.test(L)){ flushP(); flushL(); out+='<hr>'; continue; }
+    if((m=L.match(/^\s*[-*+]\s+(.*)$/))){ flushP(); if(list!=='ul'){ flushL(); list='ul'; out+='<ul>'; } out+='<li>'+inline(m[1])+'</li>'; continue; }
+    if((m=L.match(/^\s*\d+[.)]\s+(.*)$/))){ flushP(); if(list!=='ol'){ flushL(); list='ol'; out+='<ol>'; } out+='<li>'+inline(m[1])+'</li>'; continue; }
+    if((m=L.match(/^\s*>\s?(.*)$/))){ flushP(); flushL(); out+='<blockquote>'+inline(m[1])+'</blockquote>'; continue; }
+    para.push(L.trim());
+  }
+  if(code!==null) out+='<pre>'+code+'</pre>';
+  flushP(); flushL();
+  return out;
+}
+async function showWhatsnew(){
+  const w=document.createElement('div'); w.className='modal wn-in';
+  const box=document.createElement('div'); box.className='modal-box';
+  const h=document.createElement('div'); h.className='wn-title'; h.textContent='ЧТО НОВОГО?';
+  const body=document.createElement('div'); body.className='wn-body';
+  const close=()=>{ try{ w.remove(); }catch(e){} };
+  const br=document.createElement('div'); br.className='modal-btns';
+  const btn=document.createElement('button'); btn.className='btn btn-primary'; btn.textContent='ЗАКРЫТЬ';
+  btn.onclick=close; br.append(btn);
+  box.append(h,body,br); w.append(box); document.body.append(w);
+  w.addEventListener('click',e=>{ if(e.target===w) close(); });
+  let text=null;
+  try{
+    const r=await fetch('./whatsnew.md',{cache:'no-cache'});
+    if(r.ok) text=await r.text();
+  }catch(e){}
+  if(document.body.contains(w)){
+    if(text==null){
+      const p=document.createElement('div'); p.className='note';
+      p.textContent='Файл whatsnew.md не найден рядом со страницей.';
+      body.append(p);
+    }else{
+      body.innerHTML=renderMarkdown(text);
+    }
+  }
 }
 
 /* ---------------- НАВИГАЦИЯ ЭКРАНОВ ---------------- */
@@ -893,14 +972,16 @@ function joinPreview(idRaw){
   S.js={id,room,acts,stage:'preview',info:null,key:null,password:'',okDone:false,watch:null};
   const ping=()=>{ if(S.js&&S.js.stage==='preview'){ try{acts.ri.send({})}catch(e){} } };
   S.js.watch=watchPeers(room,()=>ping(),()=>{});
-  setTimeout(ping,350); setTimeout(ping,1500);
+  setTimeout(ping,350);
+  /* канал данных может открыться позже сигналинга — пингуем, пока не получим ответ */
+  S.js.pingTimer=setInterval(ping,1500);
   /* 8 секунд без ответа — комнаты нет или она пуста */
   S.js.infoTimer=setTimeout(()=>{ if(S.js&&S.js.stage==='preview'){ joinErrorScreen('Комната пуста или не существует'); } },8000);
 }
 function joinErrorScreen(t){ const js=S.js; cancelJoin(); $('join-id').value=js?js.id:''; joinMsg(t); }
 function joinInfoGot(d){
   const js=S.js; if(!js||js.stage!=='preview') return;
-  clearTimeout(js.infoTimer);
+  clearTimeout(js.infoTimer); clearInterval(js.pingTimer);
   js.stage='password';
   js.info={name:String(d.name).slice(0,30),count:Math.max(1,d.count|0)};
   previewCache.set(js.id,{...js.info,ts:Date.now()});
@@ -920,6 +1001,8 @@ async function joinRoom(){
   js.key=await deriveRoomKey(js.id,pass);
   js.okDone=false;
   try{ js.acts.ok.send({}); }catch(e){}
+  /* повторяем запрос, пока не получим контрольную строку (канал мог открыться позже) */
+  js.okPing=setInterval(()=>{ if(S.js===js&&js.stage==='checking'&&!js.okDone){ try{ js.acts.ok.send({}); }catch(e){} } },2000);
   js.okTimer=setTimeout(()=>{
     if(S.js===js&&js.stage==='checking'&&!js.okDone){
       joinErrorScreen('Не удалось проверить пароль: комната могла опустеть');
@@ -932,11 +1015,11 @@ async function joinOkGot(pack){
   try{
     const pt=await aesDecText(js.key,pack);
     if(pt!==CTRL_PLAIN) throw new Error('mismatch');
-    js.okDone=true; clearTimeout(js.okTimer);
+    js.okDone=true; clearTimeout(js.okTimer); clearInterval(js.okPing);
     joinMsg('ВХОД...');
     finishJoin();
   }catch(e){
-    js.okDone=true; clearTimeout(js.okTimer);
+    js.okDone=true; clearTimeout(js.okTimer); clearInterval(js.okPing);
     joinErrorScreen('Неверный пароль');
   }
 }
@@ -956,6 +1039,7 @@ function cancelJoin(){
   const js=S.js; if(!js) return;
   try{ js.watch&&js.watch.stop(); }catch(e){}
   clearTimeout(js.infoTimer); clearTimeout(js.okTimer);
+  clearInterval(js.pingTimer); clearInterval(js.okPing);
   try{ js.room.leave(); }catch(e){}
   S.js=null;
 }
@@ -980,10 +1064,17 @@ function wireRoomDispatchers(acts){
     if(d&&d.name){ if(S.js&&S.js.stage==='preview') joinInfoGot(d); }
     else if(S.room&&S.room.okBlob){ try{ acts.ri.send({name:S.room.name,count:S.room.members.size+1},tpid); }catch(e){} }
   });
-  /* запрос/ответ контрольной строки пароля */
+  /* запрос/ответ контрольной строки пароля.
+     Запрос — пустой объект {}; ответ — бинарный пакет AES (IV||шифртекст).
+     Trystero доставляет бинарные данные как ArrayBuffer/Uint8Array без
+     текстовых полей, поэтому различаем их по ТИПУ, а не по наличию свойства. */
   acts.ok.onMessage((d,tpid)=>{
-    if(d&&d.c!==undefined){ if(S.js&&S.js.stage==='checking') joinOkGot(d); }
-    else if(S.room&&S.room.okBlob){ try{ acts.ok.send(S.room.okBlob,tpid); }catch(e){} }
+    if(d instanceof ArrayBuffer||(d&&typeof d==='object'&&ArrayBuffer.isView(d))){
+      if(S.js&&S.js.stage==='checking') joinOkGot(d);
+    }
+    else if(d&&typeof d==='object'&&S.room&&S.room.okBlob){
+      acts.ok.send(S.room.okBlob,tpid);
+    }
   });
   /* зашифрованные JSON-конверты (presence, сообщения, метаданные файлов) */
   acts.x.onMessage(async (pack,tpid)=>{
@@ -1921,6 +2012,7 @@ function startNet(){ if(netUp||!T.mod) return; netUp=true; joinLobby(); openDmIn
     loadDialogs();
     $('setup-id').textContent=S.pid;
     if(!S.nick) showScreen('scr-setup'); else showScreen('scr-menu');
+    setTimeout(showWhatsnew,350); /* окно «Что нового?» при входе на сайт */
     await loadTrystero();
     renderRooms(); renderPublic(); renderDms(); renderProfile();
     if(S.nick) startNet();
