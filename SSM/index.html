@@ -6,12 +6,12 @@
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-<meta name="description" content="SSM — Skyle Skin Maker: визуальный конструктор скинов для P2P-мессенджера Skyle. Проверка значений — точная копия валидатора Skyle. Работает полностью локально.">
-<title>SSM — Skyle Skin Maker</title>
+<meta name="description" content="SSM 2.1 — Skyle Skin Maker: визуальный конструктор скинов для P2P-мессенджера Skyle. Настройка интерфейса, звонков (--ok/--bad), применение в Skyle одним кликом. Проверка значений — точная копия валидатора Skyle. Работает полностью локально.">
+<title>SSM 2.1 — Skyle Skin Maker</title>
 <link rel="icon" href="data:,">
 <style>
 /* ============================================================
-   SSM — Skyle Skin Maker (v2, совместим с реальным Skyle).
+   SSM — Skyle Skin Maker (v2.1, совместим с реальным Skyle).
    Стиль самого редактора — нейтральный ч/б «в духе Skyle»
    (переменные --s-*). Переменные скина (--bg, --fg, ...) живут
    ТОЛЬКО внутри контейнера предпросмотра .pv и не влияют на панель.
@@ -182,6 +182,7 @@ input[type=color]::-moz-color-swatch{border:none}
   --panel:#f2f2f2; --panel-2:#e4e4e4;
   --inv-bg:#000000; --inv-fg:#ffffff;
   --accent:#000000; --accent-fg:#ffffff;
+  --ok:#1fa855; --bad:#e5484d;
   --msg-own-bg:transparent; --msg-own-fg:var(--fg);
   --msg-peer-bg:transparent; --msg-peer-fg:var(--fg);
   --topbar-bg:var(--inv-bg); --topbar-fg:var(--inv-fg);
@@ -314,6 +315,38 @@ input[type=color]::-moz-color-swatch{border:none}
 .pv .seg-btn:last-child{border-right:none}
 .pv .seg-btn.on{background:var(--accent);color:var(--accent-fg)}
 
+/* ---------- ЗВОНКИ (реплика .callbar/.callfull Skyle, мобильный вид) ---------- */
+.pv .callbar{display:flex;align-items:center;gap:8px;border:var(--border-width) solid var(--fg);padding:4px 10px;margin:8px 10px 0;flex:none;border-radius:var(--radius);box-shadow:var(--glow)}
+.pv .callbar .call-t{font-size:12px;letter-spacing:.1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pv .callfull{
+  flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;position:relative;overflow:hidden;
+  background-color:var(--bg);
+  background-image:var(--bg-image);background-size:var(--bg-size);background-attachment:var(--bg-attachment);
+  padding:18px 20px 26px;
+}
+.pv .cf-head{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:430px;font-size:11px;letter-spacing:.14em;color:var(--muted)}
+.pv .cf-head .cf-enc{white-space:nowrap}
+.pv .cf-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;width:100%;max-width:430px;text-align:center;min-height:0}
+.pv .cf-ava{width:104px;height:104px;display:flex;align-items:center;justify-content:center;font-size:42px;font-weight:700;border:2px solid var(--fg);border-radius:var(--radius-lg);background:var(--panel);box-shadow:var(--shadow-strong);overflow:hidden}
+.pv .cf-name{font-size:18px;letter-spacing:.06em;font-weight:700;word-break:break-word}
+.pv .cf-name .sfx{font-weight:400}
+.pv .sfx{font-size:11px}
+.pv .cf-status{font-size:12px;letter-spacing:.18em;color:var(--muted);animation:pcall 1.6s infinite}
+.pv .cf-btns{display:flex;gap:20px;justify-content:center;align-items:center;padding-top:12px;flex:none}
+.pv .cf-btn{
+  width:70px;height:70px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;
+  border:var(--border-width) solid var(--fg);border-radius:50%;background:transparent;color:var(--fg);
+}
+.pv .cf-btn:hover{background:var(--fg);color:var(--bg)}
+.pv .cf-btn:active{transform:scale(.95)}
+/* маркировка звонков: красный — сброс/отклонение/выкл. микрофон, зелёный — принять */
+.pv .cf-btn.danger{background:var(--bad);border-color:var(--bad);color:#fff}
+.pv .cf-btn.ok{background:var(--ok);border-color:var(--ok);color:#fff;box-shadow:var(--glow)}
+.pv .cf-btn.off{background:var(--bad);border-color:var(--bad);color:#fff}
+.pv .cf-hint{margin-top:16px;font-size:10px;letter-spacing:.12em;color:var(--muted);text-align:center;flex:none}
+@keyframes pcall{0%,100%{opacity:.15}50%{opacity:1}}
+.pv.simple .cf-status{animation:none}
+
 /* модалка Skyle (в кадре предпросмотра — absolute) */
 .pv-modalwrap{position:absolute;inset:0;display:none;z-index:30}
 .pv-modalwrap.on{display:block}
@@ -358,9 +391,9 @@ input[type=color]::-moz-color-swatch{border:none}
 
 <!-- ШАПКА -->
 <header class="ssm-head">
-  <span class="ssm-logo">SKYLE <b>SKIN MAKER</b> <span>v2</span></span>
+  <span class="ssm-logo">SKYLE <b>SKIN MAKER</b> <span>v2.1</span></span>
   <span class="sp"></span>
-  <span class="head-note">конструктор скинов для P2P-мессенджера Skyle<br>проверка значений — как внутри Skyle · всё локально</span>
+  <span class="head-note">конструктор скинов для P2P-мессенджера Skyle<br>валидатор 1:1 со Skyle · настройка звонков · всё локально</span>
 </header>
 
 <!-- ВКЛАДКИ ДЛЯ ТЕЛЕФОНА -->
@@ -413,6 +446,11 @@ input[type=color]::-moz-color-swatch{border:none}
       <div class="shint">Тень/свечение пишутся в формате box-shadow: «смещение смешение размытие цвет», например 0 4px 16px rgba(0,0,0,.2). Диапазоны Skyle: --blur 0–32px (размытие оверлеев и окон), --panel-alpha 0–1 (подсветка участников при наведении).</div>
     </div></details>
 
+    <details class="sg" open><summary>ЗВОНОК · НОВОЕ В 2.1</summary><div class="sgb">
+      <div id="g-call"></div>
+      <div class="shint">Отдельных переменных для звонка в Skyle нет — экран звонка (исходящий, входящий, текущий) красится общими переменными из белого списка: <b>--ok</b> — кнопка «ПРИНЯТЬ», <b>--bad</b> — «СБРОС»/«ОТКЛОНИТЬ» и выключенный микрофон, <b>--glow</b> — свечение кнопки и полоски звонка, <b>--panel</b> + <b>--radius-lg</b> (раздел «Форма») + <b>--shadow-strong</b> — аватар, <b>--muted</b> — статус и подсказки, фон — общий <b>--bg</b>/<b>--bg-image</b>. Чип у --ok/--bad — контраст белой иконки кнопки (норма для иконок 3:1). Живой экран звонка — вкладка «ЗВОНОК» над предпросмотром.</div>
+    </div></details>
+
     <details class="sg" open><summary>ФОН</summary><div class="sgb">
       <span class="slbl">ГРАДИЕНТ (ДВА ЦВЕТА + УГОЛ)</span>
       <div id="grad-rows"></div>
@@ -445,9 +483,10 @@ input[type=color]::-moz-color-swatch{border:none}
       <button type="button" class="sbtn primary wide" id="btn-dl">СКАЧАТЬ JSON</button>
       <button type="button" class="sbtn wide" id="btn-cjson">КОПИРОВАТЬ JSON</button>
       <button type="button" class="sbtn wide" id="btn-clink">КОПИРОВАТЬ ССЫЛКУ</button>
+      <button type="button" class="sbtn wide" id="btn-apply">ПРИМЕНИТЬ В SKYLE (ЭТОТ ДОМЕН)</button>
       <div class="shint" id="exp-info"></div>
       <div class="serr" id="exp-err" hidden></div>
-      <div class="shint">Ссылка вида triuzed.github.io/skyle/#skin=… открывает Skyle сразу с этим скином (Skyle спросит подтверждение). SSM тоже понимает такие ссылки — откройте её здесь, чтобы продолжить редактирование.</div>
+      <div class="shint">«Применить в Skyle» записывает скин в хранилище Skyle (localStorage: skyle_customSkin + тема «skin») — работает, когда эта страница и Skyle открыты с одного домена, например оба на triuzed.github.io. Дальше просто откройте или обновите Skyle. С диска (file://) так не получится — скачайте JSON и импортируйте через «Темы» в Skyle. Ссылка вида triuzed.github.io/skyle/#skin=… открывает Skyle сразу с этим скином (Skyle спросит подтверждение). SSM тоже понимает такие ссылки — откройте её здесь, чтобы продолжить редактирование.</div>
     </div></details>
 
     <details class="sg" open><summary>ИМПОРТ</summary><div class="sgb">
@@ -460,7 +499,7 @@ input[type=color]::-moz-color-swatch{border:none}
       <div class="shint">Проверка — точная копия валидатора Skyle: если скин принят здесь, его примет и Skyle. SSM также чинит скины, которые Skyle сохранил с развёрнутым шрифтом (после перезапуска страницы они перестают применяться — импортируйте их сюда и пересохраните).</div>
     </div></details>
 
-    <div class="shint">SSM 2.0 · формат: {"ssm":1,"name","author","mode","vars"} · в JSON пишутся только изменённые переменные, остальное Skyle добирает из своей базы · черновик автосохраняется в localStorage (ssm_draft).</div>
+    <div class="shint">SSM 2.1 · формат: {"ssm":1,"name","author","mode","vars"} · в JSON пишутся только изменённые переменные, остальное Skyle добирает из своей базы · новое в 2.1: --ok/--bad и экран звонка, применение в Skyle одним кликом, пресет «Бумага» · черновик автосохраняется в localStorage (ssm_draft).</div>
   </aside>
 
   <!-- ================= ПРЕДПРОСМОТР ================= -->
@@ -470,6 +509,11 @@ input[type=color]::-moz-color-swatch{border:none}
       <button type="button" class="sbtn mini tbtn on" data-scr="chat" aria-pressed="true">ЧАТ</button>
       <button type="button" class="sbtn mini tbtn" data-scr="menu" aria-pressed="false">МЕНЮ</button>
       <button type="button" class="sbtn mini tbtn" data-scr="profile" aria-pressed="false">ПРОФИЛЬ</button>
+      <button type="button" class="sbtn mini tbtn" data-scr="call" aria-pressed="false">ЗВОНОК</button>
+      <span class="tlbl" style="margin-left:6px">СОСТОЯНИЕ:</span>
+      <button type="button" class="sbtn mini csbtn on" data-cs="out" aria-pressed="true">ИСХОДЯЩИЙ</button>
+      <button type="button" class="sbtn mini csbtn" data-cs="in" aria-pressed="false">ВХОДЯЩИЙ</button>
+      <button type="button" class="sbtn mini csbtn" data-cs="act" aria-pressed="false">ТЕКУЩИЙ</button>
       <span class="sp"></span>
       <button type="button" class="sbtn mini" id="btn-pvmodal" aria-pressed="false">МОДАЛКА</button>
       <label class="schk"><input type="checkbox" id="chk-simple">УПРОЩЁННЫЙ РЕЖИМ</label>
@@ -556,6 +600,43 @@ input[type=color]::-moz-color-swatch{border:none}
             </div>
           </div>
 
+          <!-- ЭКРАН: ЗВОНОК (реплика .callfull Skyle: исходящий/входящий/текущий) -->
+          <div class="pv-screen" data-pvs="call">
+            <div class="callbar">
+              <span class="call-t">ЗВОНОК · 2 · 0:00</span>
+              <span class="flex-sp"></span>
+              <button type="button" class="btn btn-mini" id="pv-cb-mute" tabindex="-1">МИКРОФОН: ВКЛ</button>
+              <button type="button" class="btn btn-mini" tabindex="-1">ПОКИНУТЬ</button>
+            </div>
+            <div class="callfull">
+              <div class="cf-head"><span id="pv-cf-label">ЛИЧНЫЙ ЗВОНОК</span><span class="cf-enc">ШИФРОВАНИЕ ECDH · P2P</span></div>
+              <div class="cf-mid">
+                <div class="cf-ava" aria-hidden="true">T</div>
+                <div class="cf-who">
+                  <div class="cf-name">triu<span class="sfx muted">#Z4K</span></div>
+                  <div class="cf-status" id="pv-cf-status">ВЫЗОВ...</div>
+                </div>
+              </div>
+              <div class="cf-btns" id="pv-cf-btns">
+                <button type="button" class="cf-btn" id="pv-cf-mute" aria-label="Микрофон">
+                  <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+                </button>
+                <button type="button" class="cf-btn danger" aria-label="Завершить звонок">
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.5c5.2-4.4 12.8-4.4 18 0l-2.6 3a1.6 1.6 0 0 1-2 .3l-2.5-1.4a1.6 1.6 0 0 1-.8-1.4l.1-1.7a11.4 11.4 0 0 0-4.4 0l.1 1.7c0 .6-.3 1.1-.8 1.4l-2.5 1.4a1.6 1.6 0 0 1-2-.3z"/></svg>
+                </button>
+              </div>
+              <div class="cf-btns hidden" id="pv-cf-btns-in">
+                <button type="button" class="cf-btn danger" aria-label="Отклонить звонок">
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.5c5.2-4.4 12.8-4.4 18 0l-2.6 3a1.6 1.6 0 0 1-2 .3l-2.5-1.4a1.6 1.6 0 0 1-.8-1.4l.1-1.7a11.4 11.4 0 0 0-4.4 0l.1 1.7c0 .6-.3 1.1-.8 1.4l-2.5 1.4a1.6 1.6 0 0 1-2-.3z"/></svg>
+                </button>
+                <button type="button" class="cf-btn ok" aria-label="Принять звонок">
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" style="transform:rotate(135deg)"><path d="M3 10.5c5.2-4.4 12.8-4.4 18 0l-2.6 3a1.6 1.6 0 0 1-2 .3l-2.5-1.4a1.6 1.6 0 0 1-.8-1.4l.1-1.7a11.4 11.4 0 0 0-4.4 0l.1 1.7c0 .6-.3 1.1-.8 1.4l-2.5 1.4a1.6 1.6 0 0 1-2-.3z"/></svg>
+                </button>
+              </div>
+              <div class="cf-hint">СКВОЗНОЕ ШИФРОВАНИЕ ECDH · АУДИО ИДЁТ НАПРЯМУЮ, МИМО СЕРВЕРОВ</div>
+            </div>
+          </div>
+
           <!-- МОДАЛКА ПОВЕРХ (как confirmBox в Skyle) -->
           <div class="pv-modalwrap" id="pv-modalwrap">
             <div class="modal">
@@ -580,11 +661,14 @@ input[type=color]::-moz-color-swatch{border:none}
 <script>
 'use strict';
 /* ============================================================
-   SKYLE SKIN MAKER (SSM) v2 — конструктор скинов для мессенджера Skyle.
+   SKYLE SKIN MAKER (SSM) v2.1 — конструктор скинов для мессенджера Skyle.
    Один файл, без зависимостей. Разделы:
    1. Константы  2. Утилиты  3. Валидатор (копия Skyle)
    4. Состояние  5. Пресеты и случайный скин  6. Предпросмотр
    7. UI редактора  8. Фон-картинка  9. Экспорт/импорт
+   Новое в 2.1: переменные --ok/--bad (кнопки звонка), вкладка «ЗВОНОК»
+   с репликой экрана звонка (исходящий/входящий/текущий) и применение
+   скина в Skyle одним кликом (localStorage того же домена).
    Совместимость: скины, принимаемые здесь, принимает валидатор
    window.skyleSkin внутри Skyle (тот же белый список и те же правила).
    ============================================================ */
@@ -608,7 +692,7 @@ const LS_SIMPLE='ssm_simple';     // флаг «упрощённого режи�
 const VARS={
   '--bg':'color','--fg':'color','--muted':'color','--line':'color','--line-soft':'color',
   '--panel':'color','--panel-2':'color','--inv-bg':'color','--inv-fg':'color',
-  '--accent':'color','--accent-fg':'color',
+  '--accent':'color','--accent-fg':'color','--ok':'color','--bad':'color',
   '--msg-own-bg':'color','--msg-own-fg':'color','--msg-peer-bg':'color','--msg-peer-fg':'color',
   '--topbar-bg':'color','--topbar-fg':'color',
   '--radius':'len:0:64','--radius-lg':'len:0:64',
@@ -718,11 +802,23 @@ function skValidate(skin){
 
 // порядок переменных для UI/JSON: 17 цветов + 13 прочих
 const COLOR_VARS=['--bg','--fg','--muted','--line','--line-soft','--panel','--panel-2','--inv-bg','--inv-fg','--accent','--accent-fg','--msg-own-bg','--msg-own-fg','--msg-peer-bg','--msg-peer-fg','--topbar-bg','--topbar-fg'];
-const ALL_VARS=[...COLOR_VARS,'--radius','--radius-lg','--border-width','--font-size','--font','--shadow','--shadow-strong','--glow','--blur','--panel-alpha','--bg-image','--bg-size','--bg-attachment'];
+const ALL_VARS=[...COLOR_VARS,'--ok','--bad','--radius','--radius-lg','--border-width','--font-size','--font','--shadow','--shadow-strong','--glow','--blur','--panel-alpha','--bg-image','--bg-size','--bg-attachment'];
 // диапазоны длин (в px) — как в типах len: у Skyle
 const RANGES={'--radius':[0,64],'--radius-lg':[0,64],'--border-width':[0,6],'--font-size':[8,28],'--blur':[0,32]};
 // пары для проверки контраста WCAG (последняя — кнопки/вкладки на акценте)
 const CONTRAST_PAIRS=[['--fg','--bg'],['--msg-own-fg','--msg-own-bg'],['--msg-peer-fg','--msg-peer-bg'],['--topbar-fg','--topbar-bg'],['--accent-fg','--accent']];
+// кнопки звонка: белая иконка на --ok/--bad (норма для иконок/графики — 3:1)
+const CALL_CHECKS=[['--ok','#ffffff',3],['--bad','#ffffff',3]];
+// вкладка «ЗВОНОК»: общие переменные, которыми в Skyle красится экран звонка
+const CALL_META={
+  colors:[
+    ['--ok','кнопка «ПРИНЯТЬ» звонка'],
+    ['--bad','«СБРОС»/«ОТКЛОНИТЬ», выкл. микрофон'],
+    ['--panel','подложка аватара'],
+    ['--muted','статус («ВЫЗОВ...») и подсказки']
+  ],
+  fx:[['--glow','свечение кнопки «ПРИНЯТЬ» и полоски звонка'],['--shadow-strong','тень аватара']]
+};
 // метки цветовых переменных: [ключ, подпись, подзаголовок в UI]
 const COLOR_META=[
   ['--bg','фон страницы','БАЗОВЫЕ'],
@@ -748,9 +844,10 @@ const COLOR_META=[
    Если переменная не задана в скине, Skyle использует именно эти значения:
    свои сообщения — прозрачные с акцентной чертой слева, топбар — инверсия,
    акцент = основной текст. Предпросмотр и проверка контраста считают так же. */
+/* --ok/--bad в тёмной базе Skyle не переопределяются — значения общие */
 const BASE={
-  light:{'--bg':'#ffffff','--fg':'#000000','--muted':'#6e6e6e','--line':'#000000','--line-soft':'#d9d9d9','--panel':'#f2f2f2','--panel-2':'#e4e4e4','--inv-bg':'#000000','--inv-fg':'#ffffff','--accent':'#000000','--accent-fg':'#ffffff','--msg-own-bg':'transparent','--msg-own-fg':'#000000','--msg-peer-bg':'transparent','--msg-peer-fg':'#000000','--topbar-bg':'#000000','--topbar-fg':'#ffffff','--radius':'0','--radius-lg':'0','--border-width':'1px','--font-size':'14px','--font':'mono','--shadow':'none','--shadow-strong':'none','--glow':'none','--blur':'0px','--panel-alpha':'1','--bg-image':'none','--bg-size':'auto','--bg-attachment':'scroll'},
-  dark:{'--bg':'#000000','--fg':'#ffffff','--muted':'#9a9a9a','--line':'#ffffff','--line-soft':'#2b2b2b','--panel':'#141414','--panel-2':'#202020','--inv-bg':'#ffffff','--inv-fg':'#000000','--accent':'#ffffff','--accent-fg':'#000000','--msg-own-bg':'transparent','--msg-own-fg':'#ffffff','--msg-peer-bg':'transparent','--msg-peer-fg':'#ffffff','--topbar-bg':'#ffffff','--topbar-fg':'#000000','--radius':'0','--radius-lg':'0','--border-width':'1px','--font-size':'14px','--font':'mono','--shadow':'none','--shadow-strong':'none','--glow':'none','--blur':'0px','--panel-alpha':'1','--bg-image':'none','--bg-size':'auto','--bg-attachment':'scroll'}
+  light:{'--bg':'#ffffff','--fg':'#000000','--muted':'#6e6e6e','--line':'#000000','--line-soft':'#d9d9d9','--panel':'#f2f2f2','--panel-2':'#e4e4e4','--inv-bg':'#000000','--inv-fg':'#ffffff','--accent':'#000000','--accent-fg':'#ffffff','--ok':'#1fa855','--bad':'#e5484d','--msg-own-bg':'transparent','--msg-own-fg':'#000000','--msg-peer-bg':'transparent','--msg-peer-fg':'#000000','--topbar-bg':'#000000','--topbar-fg':'#ffffff','--radius':'0','--radius-lg':'0','--border-width':'1px','--font-size':'14px','--font':'mono','--shadow':'none','--shadow-strong':'none','--glow':'none','--blur':'0px','--panel-alpha':'1','--bg-image':'none','--bg-size':'auto','--bg-attachment':'scroll'},
+  dark:{'--bg':'#000000','--fg':'#ffffff','--muted':'#9a9a9a','--line':'#ffffff','--line-soft':'#2b2b2b','--panel':'#141414','--panel-2':'#202020','--inv-bg':'#ffffff','--inv-fg':'#000000','--accent':'#ffffff','--accent-fg':'#000000','--ok':'#1fa855','--bad':'#e5484d','--msg-own-bg':'transparent','--msg-own-fg':'#ffffff','--msg-peer-bg':'transparent','--msg-peer-fg':'#ffffff','--topbar-bg':'#ffffff','--topbar-fg':'#000000','--radius':'0','--radius-lg':'0','--border-width':'1px','--font-size':'14px','--font':'mono','--shadow':'none','--shadow-strong':'none','--glow':'none','--blur':'0px','--panel-alpha':'1','--bg-image':'none','--bg-size':'auto','--bg-attachment':'scroll'}
 };
 
 /* ================= 2. УТИЛИТЫ ================= */
@@ -987,7 +1084,8 @@ function setVal(inp,v){if(inp&&document.activeElement!==inp)inp.value=v;}
 /* Пресеты НЕ задают --font: текущая версия Skyle хранит скин с уже
    развёрнутым стеком шрифта и после перезапуска страницы может не
    применить такой скин целиком (валидатор ждёт короткое имя).
-   Шрифт можно выбрать вручную — см. подсказку в разделе «ТЕКСТ». */
+   Шрифт можно выбрать вручную — см. подсказку в разделе «ТЕКСТ».
+   С 2.1 пресеты задают и --ok/--bad — цвета кнопок звонка. */
 const PRESETS=[
   {id:'classic',name:'Classic',sub:'штатный вид',mode:null,varsFn:m=>(m==='dark'?{
     '--bg':'#000000','--fg':'#ffffff','--muted':'#9a9a9a','--line':'#ffffff','--line-soft':'#2b2b2b',
@@ -1014,7 +1112,8 @@ const PRESETS=[
     '--topbar-bg':'rgba(255,255,255,.55)','--topbar-fg':'#10304f',
     '--radius':'12px','--radius-lg':'16px','--border-width':'1px',
     '--shadow':'0 2px 10px rgba(31,111,214,.18)','--shadow-strong':'0 8px 30px rgba(16,48,79,.25)',
-    '--glow':'0 1px 6px rgba(31,111,214,.35)','--blur':'10px','--panel-alpha':'0.7'
+    '--glow':'0 1px 6px rgba(31,111,214,.35)','--blur':'10px','--panel-alpha':'0.7',
+    '--ok':'#128a4c','--bad':'#d93036'
   }},
   {id:'retrowave',name:'Retrowave',sub:'неон 80-х',mode:'dark',vars:{
     '--bg':'#14062b',
@@ -1030,7 +1129,8 @@ const PRESETS=[
     '--topbar-bg':'rgba(20,6,43,.85)','--topbar-fg':'#ff74b3',
     '--radius':'4px','--radius-lg':'6px','--border-width':'1px',
     '--shadow':'0 0 14px rgba(255,46,136,.3)','--shadow-strong':'0 0 26px rgba(255,46,136,.45)',
-    '--glow':'0 0 10px rgba(255,46,136,.6)','--blur':'8px','--panel-alpha':'0.8'
+    '--glow':'0 0 10px rgba(255,46,136,.6)','--blur':'8px','--panel-alpha':'0.8',
+    '--ok':'#00995f','--bad':'#d81b4f'
   }},
   {id:'win98',name:'Windows 98',sub:'ретро-бевели',mode:'light',vars:{
     '--bg':'#c0c0c0','--fg':'#000000','--muted':'#5d5d5d',
@@ -1042,7 +1142,8 @@ const PRESETS=[
     '--msg-peer-bg':'#dfdfdf','--msg-peer-fg':'#000000',
     '--topbar-bg':'#000080','--topbar-fg':'#ffffff',
     '--radius':'0','--radius-lg':'0','--border-width':'1px',
-    '--shadow':'2px 2px 0 rgba(0,0,0,.35)','--shadow-strong':'4px 4px 0 rgba(0,0,0,.4)'
+    '--shadow':'2px 2px 0 rgba(0,0,0,.35)','--shadow-strong':'4px 4px 0 rgba(0,0,0,.4)',
+    '--ok':'#008000','--bad':'#800000'
   }},
   {id:'y2k',name:'Y2K',sub:'хром и глянец',mode:'light',vars:{
     '--bg':'#dfe9f5',
@@ -1058,7 +1159,8 @@ const PRESETS=[
     '--topbar-bg':'rgba(255,255,255,.6)','--topbar-fg':'#1a2b52',
     '--radius':'10px','--radius-lg':'14px','--border-width':'1px',
     '--shadow':'0 2px 8px rgba(27,108,192,.25)','--shadow-strong':'0 10px 28px rgba(26,43,82,.3)',
-    '--glow':'0 0 8px rgba(27,108,192,.4)','--blur':'8px','--panel-alpha':'0.7'
+    '--glow':'0 0 8px rgba(27,108,192,.4)','--blur':'8px','--panel-alpha':'0.7',
+    '--ok':'#00a06a','--bad':'#e23a55'
   }},
   {id:'terminal',name:'Терминал',sub:'зелёный фосфор',mode:'dark',vars:{
     '--bg':'#000000','--fg':'#00ff66','--muted':'#00a344',
@@ -1070,7 +1172,8 @@ const PRESETS=[
     '--msg-peer-bg':'#04130a','--msg-peer-fg':'#7dffab',
     '--topbar-bg':'#000000','--topbar-fg':'#00ff66',
     '--radius':'0','--radius-lg':'0','--border-width':'1px',
-    '--glow':'0 0 6px rgba(0,255,102,.5)'
+    '--glow':'0 0 6px rgba(0,255,102,.5)',
+    '--ok':'#009940','--bad':'#ff3355'
   }},
   {id:'pastel',name:'Пастель',sub:'мягкие тона',mode:'light',vars:{
     '--bg':'#fbf3ee','--fg':'#5c4a52','--muted':'#a08a92',
@@ -1082,7 +1185,20 @@ const PRESETS=[
     '--msg-peer-bg':'#e4f0e7','--msg-peer-fg':'#4a5c52',
     '--topbar-bg':'#f6e7e4','--topbar-fg':'#5c4a52',
     '--radius':'14px','--radius-lg':'18px','--border-width':'1px',
-    '--shadow':'0 2px 8px rgba(180,140,150,.2)'
+    '--shadow':'0 2px 8px rgba(180,140,150,.2)',
+    '--ok':'#3f8f63','--bad':'#d9556a'
+  }},
+  {id:'paper',name:'Бумага',sub:'встроенная тема Skyle',mode:'light',vars:{
+    '--bg':'#f4eee3','--fg':'#2b2118','--muted':'#8a7a66',
+    '--line':'#2b2118','--line-soft':'#ddd2bd',
+    '--panel':'#ece3d2','--panel-2':'#e2d5bd',
+    '--inv-bg':'#2b2118','--inv-fg':'#f4eee3',
+    '--accent':'#8a5a2b','--accent-fg':'#ffffff',
+    '--msg-own-bg':'rgba(138,90,43,.08)','--msg-own-fg':'#2b2118',
+    '--msg-peer-bg':'rgba(43,33,24,.05)','--msg-peer-fg':'#2b2118',
+    '--radius':'6px','--radius-lg':'10px','--border-width':'1px',
+    '--shadow':'0 4px 14px rgba(43,33,24,.10)',
+    '--ok':'#1fa855','--bad':'#e5484d'
   }}
 ];
 
@@ -1199,6 +1315,19 @@ function makeRandomVars(mode){
   v['--shadow-strong']='0 10px 30px rgba(0,0,0,'+Math.min(0.6,shA+0.14).toFixed(2)+')';
   v['--glow']=(!light&&Math.random()<0.6)?('0 0 '+R(4,10)+'px '+v['--accent']):'none';
   if(Math.random()<0.25)v['--blur']=pick(['4px','6px','10px']);
+  // кнопки звонка: зелёный/красный с контрастом белой иконки не ниже 3:1
+  const safeVsWhite=(hh,ss,L)=>{
+    for(let i=0;i<24;i++){
+      const c=parseColor(hex(((hh%360)+360)%360,ss,L));
+      if(contrastRatio({r:255,g:255,b:255,a:1},c)>=3)return L;
+      L-=2;
+    }
+    return Math.max(12,L);
+  };
+  const okH=((140+R(-12,12))%360+360)%360,okS=R(50,70);
+  v['--ok']=hex(okH,okS,safeVsWhite(okH,okS,R(34,42)));
+  const badH=R(350,368)%360,badS=R(60,85);
+  v['--bad']=hex(badH,badS,safeVsWhite(badH,badS,R(40,48)));
   if(Math.random()<0.45){
     v['--bg-image']='linear-gradient('+R(0,360)+'deg, '+hex(h,bgS,clamp(light?bgL+2:bgL-2,0,99))+' 0%, '+hex(h2,Math.min(90,bgS+20),light?R(85,90):R(16,26))+' 100%)';
     v['--bg-size']='cover';
@@ -1265,7 +1394,7 @@ function updatePvTexts(){
 /* ================= 7. UI РЕДАКТОРА ================= */
 const el={};
 function grab(){
-  const ids=['pv','pgrid','g-colors','g-shape','g-text','g-fx','grad-rows','f-name','f-author','m-light','m-dark','btn-random','btn-reset','bg-none','bg-img-btn','bg-img-file','bg-info','bg-size','bg-att','in:grad-a','sv:grad-a','btn-dl','btn-cjson','btn-clink','exp-info','exp-err','imp-file','imp-text','btn-imp','imp-err','btn-pvmodal','pv-modalwrap','pv-mtext','pv-skin-note','chk-simple','s-toasts','btn-file'];
+  const ids=['pv','pgrid','g-colors','g-shape','g-text','g-fx','g-call','grad-rows','f-name','f-author','m-light','m-dark','btn-random','btn-reset','bg-none','bg-img-btn','bg-img-file','bg-info','bg-size','bg-att','in:grad-a','sv:grad-a','btn-dl','btn-cjson','btn-clink','btn-apply','exp-info','exp-err','imp-file','imp-text','btn-imp','imp-err','btn-pvmodal','pv-modalwrap','pv-mtext','pv-skin-note','chk-simple','s-toasts','btn-file','pv-cf-label','pv-cf-status','pv-cf-btns','pv-cf-btns-in','pv-cf-mute','pv-cb-mute'];
   for(const id of ids)el[id]=byId(id);
 }
 
@@ -1467,6 +1596,158 @@ function refreshFx(){
   byId('sv:--panel-alpha').textContent=Math.round(a*100)+'%';
 }
 
+/* ---- Группа «Звонок» (новое в 2.1) ---- */
+/* Отдельных переменных для звонка в Skyle нет: экран звонка красится общими
+   переменными из белого списка. Здесь собраны именно они: --ok/--bad живут
+   только в этой вкладке, --panel/--muted и тени — дубли из «Цветов»/«Эффектов»
+   (удобно настраивать звонок, не трогая остальное). Реестр CALL_ROWS
+   обслуживает синхронизацию значений и чипы контраста белой иконки. */
+const CALL_ROWS=[];
+function mkCallColorRow(root,k,label,chip){
+  const row=document.createElement('div');row.className='crow';
+  const sw=document.createElement('input');
+  sw.type='color';sw.className='swatch';sw.id='xsw:'+k;
+  sw.setAttribute('aria-label','Цвет '+k);
+  const meta=document.createElement('div');meta.className='cmeta';
+  const nm=document.createElement('div');nm.className='cname';nm.title=k+' — '+label;
+  const vb=document.createElement('span');vb.textContent=k;
+  const vi=document.createElement('i');vi.textContent=' · '+label;
+  nm.append(vb,vi);
+  meta.append(nm);
+  if(chip){
+    const ch=document.createElement('span');ch.className='chip';ch.id='kchip:'+k;ch.hidden=true;
+    meta.append(ch);
+  }
+  const tx=document.createElement('input');
+  tx.type='text';tx.className='cval';tx.id='xcv:'+k;tx.spellcheck=false;
+  tx.placeholder='#hex · rgb() · hsl()';
+  tx.setAttribute('aria-label','Значение '+k);
+  tx.addEventListener('input',()=>{
+    const v=tx.value.trim();
+    if(v===''){tx.classList.remove('bad');setVar(k,null);return;}
+    if(skCheckVal(k,v)!=null){tx.classList.remove('bad');setVar(k,v);}
+    else tx.classList.add('bad');
+  });
+  const rs=document.createElement('button');
+  rs.type='button';rs.className='creset';rs.id='xcr:'+k;rs.textContent='×';
+  rs.title='Сбросить '+k+' к значению по умолчанию';
+  rs.setAttribute('aria-label','Сбросить '+k);
+  rs.addEventListener('click',()=>setVar(k,null));
+  row.append(sw,meta,tx,rs);
+  root.append(row);
+  sw.addEventListener('input',()=>setVar(k,sw.value));
+  CALL_ROWS.push({k,kind:'color',sw:'xsw:'+k,cv:'xcv:'+k,cr:'xcr:'+k,chipId:chip?('kchip:'+k):null});
+}
+function mkCallFxRow(root,k,label){
+  const box=document.createElement('div');box.className='ctl';
+  const top=document.createElement('div');top.className='ctl-top';
+  const l=document.createElement('span');l.className='ctl-l';l.textContent=k+' · '+label;
+  top.append(l);box.append(top);
+  const inp=document.createElement('input');
+  inp.type='text';inp.className='cval fxin';inp.id='xcv:'+k;inp.spellcheck=false;
+  inp.placeholder='none или 0 4px 16px rgba(0,0,0,.2)';
+  inp.setAttribute('aria-label','Значение '+k);
+  inp.addEventListener('input',()=>{
+    const v=inp.value.trim();
+    if(v===''){inp.classList.remove('bad');setVar(k,null);return;}
+    if(skCheckVal(k,v)!=null){inp.classList.remove('bad');setVar(k,v);}
+    else inp.classList.add('bad');
+  });
+  const chips=document.createElement('div');chips.className='chips';
+  for(const[cl,cv]of FX_CHIPS[k]||[['НЕТ','none']]){
+    const b=document.createElement('button');
+    b.type='button';b.className='sbtn';b.textContent=cl;b.title=cv;
+    b.addEventListener('click',()=>setVar(k,cv));
+    chips.append(b);
+  }
+  box.append(inp,chips);
+  root.append(box);
+  CALL_ROWS.push({k,kind:'fx',cv:'xcv:'+k});
+}
+function buildCall(){
+  const root=el['g-call'];root.textContent='';
+  const sub=t=>{const h=document.createElement('div');h.className='ch-sub';h.textContent=t;root.append(h);};
+  sub('КНОПКИ ЗВОНКА И ПОДСКАЗКИ');
+  for(const[k,label]of CALL_META.colors){
+    const isBtn=(k==='--ok'||k==='--bad');
+    mkCallColorRow(root,k,label,isBtn); // чип контраста — только у кнопок
+  }
+  sub('АВАТАР И СВЕЧЕНИЕ');
+  for(const[k,label]of CALL_META.fx)mkCallFxRow(root,k,label);
+  const hint=document.createElement('div');hint.className='shint';
+  hint.innerHTML='Форма аватара — <b>--radius-lg</b> в разделе «Форма», фон звонка — общий <b>--bg</b>/<b>--bg-image</b> (раздел «Фон»). Справа на вкладке «ЗВОНОК» — живой экран: переключайте ИСХОДЯЩИЙ / ВХОДЯЩИЙ / ТЕКУЩИЙ.';
+  root.append(hint);
+}
+function refreshCall(){
+  const canvasC=state.mode==='dark'?{r:0,g:0,b:0,a:1}:{r:255,g:255,b:255,a:1};
+  const bgC=parseColor(eff('--bg'));
+  const under=bgC?composite(bgC,canvasC):canvasC;
+  for(const r of CALL_ROWS){
+    const tx=byId(r.cv);if(!tx)continue;
+    if(document.activeElement!==tx)tx.value=(r.k in state.vars)?state.vars[r.k]:'';
+    tx.title='Сейчас: '+eff(r.k);
+    tx.classList.toggle('bad',state.vars[r.k]!=null&&skCheckVal(r.k,state.vars[r.k])==null);
+    if(r.kind==='color'){
+      const c=parseColor(eff(r.k));
+      const sw=byId(r.sw);
+      if(c){sw.disabled=false;sw.value=toHex(c);}else sw.disabled=true;
+      byId(r.cr).disabled=!(r.k in state.vars);
+      if(r.chipId){
+        const chip=byId(r.chipId);
+        const cf=parseColor(eff(r.k));
+        if(!cf){chip.hidden=true;}
+        else{
+          const btn=composite(cf,under); // фактический цвет кнопки
+          const rt=contrastRatio({r:255,g:255,b:255,a:1},btn);
+          const low=rt<3;
+          chip.hidden=false;chip.classList.toggle('bad',low);
+          chip.textContent=rt.toFixed(1)+':1'+(low?' · мало':'');
+          chip.title='Контраст белой иконки на '+r.k+' (норма для иконок 3:1).';
+        }
+      }
+    }
+  }
+}
+
+/* ---- Состояния звонка в предпросмотре: исходящий / входящий / текущий ----
+   Тексты и состав кнопок повторяют Skyle: «ЛИЧНЫЙ ЗВОНОК»/«ВЫЗОВ...»,
+   «ВХОДЯЩИЙ ЗВОНОК»/«ЗВОНЯТ ВАМ», таймер у активного разговора. */
+const CALL_STATES={
+  out:{label:'ЛИЧНЫЙ ЗВОНОК',status:'ВЫЗОВ...'},
+  in:{label:'ВХОДЯЩИЙ ЗВОНОК',status:'ЗВОНЯТ ВАМ'},
+  act:{label:'ЛИЧНЫЙ ЗВОНОК',status:null} /* статус = живой таймер */
+};
+let callState='out',callTimer=null,callSec=0,pvMicOff=false;
+function setCallState(s){
+  if(!CALL_STATES[s]||!el['pv-cf-status'])return;
+  callState=s;
+  document.querySelectorAll('.csbtn').forEach(b=>{
+    const on=b.dataset.cs===s;
+    b.classList.toggle('on',on);
+    b.setAttribute('aria-pressed',String(on));
+  });
+  if(callTimer){clearInterval(callTimer);callTimer=null;}
+  el['pv-cf-label'].textContent=CALL_STATES[s].label;
+  el['pv-cf-btns'].classList.toggle('hidden',s==='in');
+  el['pv-cf-btns-in'].classList.toggle('hidden',s!=='in');
+  if(s==='act'){
+    callSec=0;
+    el['pv-cf-status'].textContent='0:00';
+    callTimer=setInterval(()=>{
+      callSec++;
+      const st=byId('pv-cf-status');
+      if(st)st.textContent=Math.floor(callSec/60)+':'+String(callSec%60).padStart(2,'0');
+    },1000);
+  }else{
+    el['pv-cf-status'].textContent=CALL_STATES[s].status;
+  }
+}
+function togglePvMic(){
+  pvMicOff=!pvMicOff;
+  if(el['pv-cf-mute'])el['pv-cf-mute'].classList.toggle('off',pvMicOff);
+  if(el['pv-cb-mute'])el['pv-cb-mute'].textContent='МИКРОФОН: '+(pvMicOff?'ВЫКЛ':'ВКЛ');
+}
+
 /* ---- Группа «Фон» ---- */
 const grad={c1:'#d9ecff',c2:'#ffffff',a:160};
 function buildBg(){
@@ -1554,7 +1835,7 @@ function renderAll(){
   el['m-light'].setAttribute('aria-pressed',String(state.mode==='light'));
   el['m-dark'].classList.toggle('on',state.mode==='dark');
   el['m-dark'].setAttribute('aria-pressed',String(state.mode==='dark'));
-  refreshColorInputs();refreshChips();refreshShape();refreshText();refreshFx();refreshBg();
+  refreshColorInputs();refreshChips();refreshShape();refreshText();refreshFx();refreshCall();refreshBg();
   applyPreview();
   const pv=el.pv;
   if(pv)pv.classList.toggle('simple',state.simple);
@@ -1574,6 +1855,10 @@ function bindStatic(){
   el['btn-dl'].addEventListener('click',downloadJSON);
   el['btn-cjson'].addEventListener('click',copyJSON);
   el['btn-clink'].addEventListener('click',copyLink);
+  el['btn-apply'].addEventListener('click',applyToSkyle);
+  document.querySelectorAll('.csbtn').forEach(b=>b.addEventListener('click',()=>setCallState(b.dataset.cs)));
+  el['pv-cf-mute'].addEventListener('click',togglePvMic);
+  el['pv-cb-mute'].addEventListener('click',togglePvMic);
   el['btn-imp'].addEventListener('click',()=>{
     const t=el['imp-text'].value;
     if(!t.trim()){showImportErrors(['Поле пустое: вставьте JSON скина.']);return;}
@@ -1783,6 +2068,34 @@ async function copyLink(){
   if(ok)toast('Ссылка скопирована — откройте её: Skyle применит скин после подтверждения');
   else toast('Не удалось скопировать ссылку');
 }
+/* ======== Применение скина в Skyle одним кликом (новое в 2.1) ========
+   Skyle при запуске читает localStorage: skyle_customSkin (каноничный скин)
+   и skyle_theme ('"skin"') и применяет скин до отрисовки. SSM лежит на том
+   же домене, что и Skyle (triuzed.github.io/skyle/SSM/), поэтому пишет прямо
+   в это хранилище — файл не нужен. Схема записи повторяет store.set Skyle:
+   значения хранятся как JSON-строки. */
+async function applyToSkyle(){
+  const x=exportable();
+  if(!x)return;
+  let ok=false,err='';
+  try{
+    localStorage.setItem('skyle_customSkin',x.json);
+    localStorage.setItem('skyle_theme','"skin"');
+    ok=true;
+  }catch(e){err=e&&e.message?e.message:String(e);}
+  if(!ok){
+    toast('Не удалось записать хранилище'+(err?': '+err:'')+'. Скачайте JSON и импортируйте в Skyle: ПРОФИЛЬ → ТЕМЫ.');
+    return;
+  }
+  const onDisk=(location.protocol==='file:');
+  const act=await sModal(
+    'Скин «'+x.skin.name+'» записан в хранилище этого домена (skyle_customSkin + тема «СВОЙ СКИН»).\n\n'+(onDisk
+      ?'СТОП: страница открыта с диска (file://), а Skyle живёт на github.io — у них разные хранилища, скин там не появится. Скачайте JSON и импортируйте вручную.'
+      :'Откройте или обновите Skyle — скин применится сам. Если позже захотите вернуть штатный вид: ТЕМЫ → КЛАССИКА.')
+    ,[{l:'ОТКРЫТЬ SKYLE',v:'go',primary:true},{l:'ПОЗЖЕ',v:null}]
+  );
+  if(act==='go')window.open(SKYLE_URL,'_blank','noopener');
+}
 function showImportErrors(list){
   const box=el['imp-err'];
   if(!list||!list.length){box.hidden=true;box.textContent='';return;}
@@ -1898,6 +2211,7 @@ function init(){
   buildShape();
   buildText();
   buildFx();
+  buildCall();
   buildBg();
   bindStatic();
   // упрощённый режим: сохранённый выбор или системная настройка
@@ -1914,7 +2228,7 @@ function init(){
 }
 
 /* Наружу — для отладки и тестов */
-window.SSM={VARS,FONTS,BASE,PRESETS,skValidate,skCheckVal,makeRandomVars,buildSkin,parseSkinText,denormVars,repairFontsIn,b64url,unb64url,state,eff};
+window.SSM={VARS,FONTS,BASE,PRESETS,CALL_CHECKS,CALL_ROWS,skValidate,skCheckVal,makeRandomVars,buildSkin,parseSkinText,denormVars,repairFontsIn,b64url,unb64url,state,eff,setCallState,refreshCall};
 init();
 </script>
 </body>
