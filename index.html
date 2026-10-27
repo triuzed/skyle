@@ -17,7 +17,7 @@
 var VARS={
   '--bg':'color','--fg':'color','--muted':'color','--line':'color','--line-soft':'color',
   '--panel':'color','--panel-2':'color','--inv-bg':'color','--inv-fg':'color',
-  '--accent':'color','--accent-fg':'color',
+  '--accent':'color','--accent-fg':'color','--ok':'color','--bad':'color',
   '--msg-own-bg':'color','--msg-own-fg':'color','--msg-peer-bg':'color','--msg-peer-fg':'color',
   '--topbar-bg':'color','--topbar-fg':'color',
   '--radius':'len:0:64','--radius-lg':'len:0:64',
@@ -160,6 +160,9 @@ try{
       if(vi) rst.setProperty('--bg-image',vi);
       if(vs) rst.setProperty('--bg-size',vs);
       if(va) rst.setProperty('--bg-attachment',va);
+      /* размытие фона — простое число пикселей, капим на 32 */
+      var nb=parseFloat(String(bg.blur||'').replace(/[^\d.]/g,''))||0;
+      if(nb>0) rst.setProperty('--bg-blur',Math.min(nb,32)+'px');
     }
   }catch(e2){}
 }catch(e){ try{ document.documentElement.dataset.theme='light'; }catch(e3){} }
@@ -186,7 +189,8 @@ try{
   /* эффекты и фон */
   --shadow:none; --shadow-strong:none; --glow:none;
   --blur:0px; --panel-alpha:1;
-  --bg-image:none; --bg-size:auto; --bg-attachment:scroll;
+  --ok:#1fa855; --bad:#e5484d;  /* маркировка кнопок звонка: зелёный — принять, красный — сброс */
+  --bg-image:none; --bg-size:auto; --bg-attachment:scroll; --bg-blur:0px;
   --cubic:cubic-bezier(.2,.8,.2,1);
 }
 [data-theme="dark"]{
@@ -415,6 +419,13 @@ textarea.inp{max-height:120px}
   transition:opacity .24s var(--cubic),visibility 0s .24s;
 }
 .callfull.show{opacity:1;visibility:visible;transition:opacity .24s var(--cubic)}
+/* размытие картинки фона: дублирующий слой ПОД контентом — фон мягкий, текст чёткий.
+   При --bg-blur:0px слой совпадает с фоном попиксельно и ничем не выдаёт себя. */
+.screen::before,.callfull::before{
+  content:"";position:absolute;inset:calc(var(--bg-blur) * -2.5);z-index:-1;pointer-events:none;
+  background-image:var(--bg-image);background-size:var(--bg-size);background-attachment:var(--bg-attachment);
+  filter:blur(var(--bg-blur));
+}
 .cf-head{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:430px;font-size:11px;letter-spacing:.14em;color:var(--muted)}
 .cf-head .cf-enc{white-space:nowrap}
 .cf-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;width:100%;max-width:430px;text-align:center}
@@ -422,6 +433,7 @@ textarea.inp{max-height:120px}
   border:2px solid var(--fg);border-radius:var(--radius-lg);background:var(--panel);box-shadow:var(--shadow-strong);overflow:hidden}
 .cf-name{font-size:18px;letter-spacing:.06em;font-weight:700;word-break:break-word}
 .cf-name .sfx{font-weight:400}
+.cf-who{display:flex;flex-direction:column;gap:4px;min-width:0}
 .cf-status{font-size:12px;letter-spacing:.18em;color:var(--muted);animation:tpulse 1.6s infinite}
 .cf-btns{display:flex;gap:20px;justify-content:center;align-items:center;padding-top:12px}
 .cf-btn{
@@ -431,11 +443,13 @@ textarea.inp{max-height:120px}
 }
 .cf-btn:hover{background:var(--fg);color:var(--bg)}
 .cf-btn:active{transform:scale(.95)}
-.cf-btn.danger{background:var(--fg);color:var(--bg)}
-.cf-btn.danger:hover{background:transparent;color:var(--fg)}
-.cf-btn.ok{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);box-shadow:var(--glow)}
-.cf-btn.ok:hover{background:var(--accent-fg);color:var(--accent);border-color:var(--accent-fg)}
-.cf-btn.off{opacity:.4}
+/* цветовая маркировка: красный — сброс/отклонение и выключенный микрофон, зелёный — принять */
+.cf-btn.danger{background:var(--bad);border-color:var(--bad);color:#fff}
+.cf-btn.danger:hover{filter:brightness(.85)}
+.cf-btn.ok{background:var(--ok);border-color:var(--ok);color:#fff;box-shadow:var(--glow)}
+.cf-btn.ok:hover{filter:brightness(.85)}
+.cf-btn.off{background:var(--bad);border-color:var(--bad);color:#fff}
+.cf-btn.off:hover{filter:brightness(.85)}
 .cf-hint{margin-top:16px;font-size:10px;letter-spacing:.12em;color:var(--muted);text-align:center}
 /* всплывающий запрос на переписку: снизу экрана, сразу с тремя кнопками */
 .reqpop{
@@ -492,6 +506,22 @@ textarea.inp{max-height:120px}
 @media (min-width:700px){
   #btn-members,#members-close{display:none}
   .backdrop{display:none}
+  /* звонок на ПК — компактная полоска снизу; на мобильном остаётся на весь экран */
+  .callfull{
+    inset:auto 0 0 0;flex-direction:row;align-items:center;gap:18px;overflow:hidden;
+    padding:10px 18px calc(10px + env(safe-area-inset-bottom));
+    border-top:var(--border-width) solid var(--fg);box-shadow:var(--shadow-strong);
+  }
+  .callfull::before{inset:0} /* размытие не должно вытекать за пределы полоски */
+  .cf-head{width:auto;max-width:none;flex-direction:column;align-items:flex-start;gap:3px;text-align:left}
+  .cf-mid{flex-direction:row;align-items:center;justify-content:flex-start;gap:12px;width:auto;max-width:none;text-align:left}
+  .cf-ava{width:46px;height:46px;font-size:20px;border-radius:var(--radius);flex:none}
+  .cf-name{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34vw}
+  .cf-status{font-size:11px;animation:none}
+  .cf-btns{padding-top:0;gap:10px}
+  .cf-btn{width:46px;height:46px}
+  .cf-btn svg{width:22px;height:22px}
+  .cf-hint{display:none}
 }
 /* ============ REDUCED MOTION: только смена цвета ============ */
 @media (prefers-reduced-motion: reduce){
@@ -813,7 +843,14 @@ textarea.inp{max-height:120px}
       <button class="seg-btn" data-bga="scroll">ПРОКРУТКА</button>
       <button class="seg-btn" data-bga="fixed">ЗАФИКСИРОВАТЬ</button>
     </div>
-    <div class="note">PNG, JPEG или WebP до 1 МБ. Картинка хранится только на этом устройстве и перекрывает фон из скина.</div>
+    <div class="lbl">РАЗМЫТИЕ ФОНА</div>
+    <div class="seg">
+      <button class="seg-btn" data-bgb="0">НЕТ</button>
+      <button class="seg-btn" data-bgb="6">СЛАБОЕ</button>
+      <button class="seg-btn" data-bgb="14">СРЕДНЕЕ</button>
+      <button class="seg-btn" data-bgb="24">СИЛЬНОЕ</button>
+    </div>
+    <div class="note">PNG, JPEG или WebP до 1 МБ. Картинка хранится только на этом устройстве и перекрывает фон из скина. Размытие касается только картинки — текст и интерфейс остаются чёткими.</div>
   </div>
 </section>
 
@@ -835,8 +872,10 @@ textarea.inp{max-height:120px}
   <div class="cf-head"><span id="cf-label">ЗВОНОК</span><span class="cf-enc">ШИФРОВАНИЕ ECDH · P2P</span></div>
   <div class="cf-mid">
     <div class="cf-ava" id="cf-ava" aria-hidden="true">?</div>
-    <div class="cf-name" id="cf-name">—</div>
-    <div class="cf-status" id="cf-status">ВЫЗОВ...</div>
+    <div class="cf-who">
+      <div class="cf-name" id="cf-name">—</div>
+      <div class="cf-status" id="cf-status">ВЫЗОВ...</div>
+    </div>
   </div>
   <div class="cf-btns" id="cf-btns">
     <button class="cf-btn" id="cf-mute" aria-label="Выключить микрофон">
@@ -848,10 +887,10 @@ textarea.inp{max-height:120px}
   </div>
   <div class="cf-btns hidden" id="cf-btns-in">
     <button class="cf-btn danger" id="cf-dec" aria-label="Отклонить звонок">
-      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" style="transform:rotate(135deg)"><path d="M3 10.5c5.2-4.4 12.8-4.4 18 0l-2.6 3a1.6 1.6 0 0 1-2 .3l-2.5-1.4a1.6 1.6 0 0 1-.8-1.4l.1-1.7a11.4 11.4 0 0 0-4.4 0l.1 1.7c0 .6-.3 1.1-.8 1.4l-2.5 1.4a1.6 1.6 0 0 1-2-.3z"/></svg>
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.5c5.2-4.4 12.8-4.4 18 0l-2.6 3a1.6 1.6 0 0 1-2 .3l-2.5-1.4a1.6 1.6 0 0 1-.8-1.4l.1-1.7a11.4 11.4 0 0 0-4.4 0l.1 1.7c0 .6-.3 1.1-.8 1.4l-2.5 1.4a1.6 1.6 0 0 1-2-.3z"/></svg>
     </button>
     <button class="cf-btn ok" id="cf-acc" aria-label="Принять звонок">
-      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.5c5.2-4.4 12.8-4.4 18 0l-2.6 3a1.6 1.6 0 0 1-2 .3l-2.5-1.4a1.6 1.6 0 0 1-.8-1.4l.1-1.7a11.4 11.4 0 0 0-4.4 0l.1 1.7c0 .6-.3 1.1-.8 1.4l-2.5 1.4a1.6 1.6 0 0 1-2-.3z"/></svg>
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" style="transform:rotate(135deg)"><path d="M3 10.5c5.2-4.4 12.8-4.4 18 0l-2.6 3a1.6 1.6 0 0 1-2 .3l-2.5-1.4a1.6 1.6 0 0 1-.8-1.4l.1-1.7a11.4 11.4 0 0 0-4.4 0l.1 1.7c0 .6-.3 1.1-.8 1.4l-2.5 1.4a1.6 1.6 0 0 1-2-.3z"/></svg>
     </button>
   </div>
   <div class="cf-hint">СКВОЗНОЕ ШИФРОВАНИЕ ECDH · АУДИО ИДЁТ НАПРЯМУЮ, МИМО СЕРВЕРОВ</div>
@@ -1083,13 +1122,16 @@ const PRESETS=[
 /* своя картинка на фон: живёт отдельно от скина и перекрывает его --bg-image */
 function applyBg(){
   const st=document.documentElement.style;
-  ['--bg-image','--bg-size','--bg-attachment'].forEach(k=>st.removeProperty(k));
+  ['--bg-image','--bg-size','--bg-attachment','--bg-blur'].forEach(k=>st.removeProperty(k));
   const bg=store.get('customBg',null);
   if(!bg||!bg.img||!window.skyleSkin) return;
   const v=window.skyleSkin.validate({ssm:1,name:'__bg',mode:'light',
     vars:{'--bg-image':bg.img,'--bg-size':String(bg.size||'cover'),'--bg-attachment':String(bg.attach||'fixed')}});
   if(!v.ok) return;
   for(const k of ['--bg-image','--bg-size','--bg-attachment']) if(v.skin.vars[k]) st.setProperty(k,v.skin.vars[k]);
+  /* размытие фона: только цифры, капим на 32px как и --blur в скинах */
+  const nb=Math.min(32,Math.max(0,parseFloat(String(bg.blur||'0').replace(/[^\d.]/g,''))||0));
+  if(nb>0) st.setProperty('--bg-blur',nb+'px');
 }
 function isPresetActive(p,cur){
   if(!p.skin) return !cur;
@@ -1132,6 +1174,7 @@ function renderThemes(){
   $('bg-state').textContent=(bg&&bg.img)?'ФОН УСТАНОВЛЕН':'ФОН НЕ УСТАНОВЛЕН';
   document.querySelectorAll('.seg-btn[data-bgs]').forEach(b=>b.classList.toggle('on',(bg&&bg.size||'cover')===b.dataset.bgs));
   document.querySelectorAll('.seg-btn[data-bga]').forEach(b=>b.classList.toggle('on',(bg&&bg.attach||'fixed')===b.dataset.bga));
+  document.querySelectorAll('.seg-btn[data-bgb]').forEach(b=>b.classList.toggle('on',String((bg&&bg.blur)||'0')===b.dataset.bgb));
 }
 function openThemes(){
   S.themesFrom=(S.screen&&S.screen!=='scr-themes')?S.screen:'scr-menu';
@@ -2970,6 +3013,11 @@ function bindUi(){
     const bg=store.get('customBg',null);
     if(!bg||!bg.img){ toast('Сначала выберите картинку фона'); return; }
     bg.attach=b.dataset.bga; store.set('customBg',bg); applyBg(); renderThemes();
+  });
+  document.querySelectorAll('.seg-btn[data-bgb]').forEach(b=>b.onclick=()=>{
+    const bg=store.get('customBg',null);
+    if(!bg||!bg.img){ toast('Сначала выберите картинку фона'); return; }
+    bg.blur=b.dataset.bgb; store.set('customBg',bg); applyBg(); renderThemes();
   });
   /* скины: файл, вставка JSON, сброс, ссылка #skin= */
   $('skin-import').onclick=()=>$('skin-file').click();
