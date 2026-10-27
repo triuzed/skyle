@@ -149,7 +149,20 @@ try{
   if(t!=='light'&&t!=='dark'){ t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'; }
   document.documentElement.dataset.theme=t;
   if(skin&&skin.vars){ var vr=validate(skin); if(vr.ok) apply(vr.skin); }
-}catch(e){ try{ document.documentElement.dataset.theme='light'; }catch(e2){} }
+  /* своя картинка на фон (раздел «ТЕМЫ») — тоже до отрисовки, чтобы не мигало */
+  try{
+    var bg=JSON.parse(localStorage.getItem('skyle_customBg')||'null');
+    if(bg&&bg.img){
+      var vi=checkVal('--bg-image',bg.img),
+          vs=checkVal('--bg-size',bg.size||'cover'),
+          va=checkVal('--bg-attachment',bg.attach||'fixed');
+      var rst=document.documentElement.style;
+      if(vi) rst.setProperty('--bg-image',vi);
+      if(vs) rst.setProperty('--bg-size',vs);
+      if(va) rst.setProperty('--bg-attachment',va);
+    }
+  }catch(e2){}
+}catch(e){ try{ document.documentElement.dataset.theme='light'; }catch(e3){} }
 })();
 </script>
 <style>
@@ -392,7 +405,53 @@ textarea.inp{max-height:120px}
 .callbar{display:flex;align-items:center;gap:8px;border:var(--border-width) solid var(--fg);padding:4px 10px;margin:8px 10px 0;flex:none;border-radius:var(--radius);box-shadow:var(--glow);animation:wnIn .2s var(--cubic) both}
 .callbar .call-t{font-size:12px;letter-spacing:.1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .callic{display:inline-flex;margin-left:6px;flex:none}
-/* ============ СЕГМЕНТЫ (тема) ============ */
+/* полноэкранный интерфейс звонка (личные звонки и входящий вызов) */
+.callfull{
+  position:fixed;inset:0;z-index:120;display:flex;flex-direction:column;align-items:center;
+  background-color:var(--bg);
+  background-image:var(--bg-image);background-size:var(--bg-size);background-attachment:var(--bg-attachment);
+  padding:calc(env(safe-area-inset-top) + 18px) 20px calc(env(safe-area-inset-bottom) + 26px);
+  opacity:0;visibility:hidden;
+  transition:opacity .24s var(--cubic),visibility 0s .24s;
+}
+.callfull.show{opacity:1;visibility:visible;transition:opacity .24s var(--cubic)}
+.cf-head{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:430px;font-size:11px;letter-spacing:.14em;color:var(--muted)}
+.cf-head .cf-enc{white-space:nowrap}
+.cf-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;width:100%;max-width:430px;text-align:center}
+.cf-ava{width:104px;height:104px;display:flex;align-items:center;justify-content:center;font-size:42px;font-weight:700;
+  border:2px solid var(--fg);border-radius:var(--radius-lg);background:var(--panel);box-shadow:var(--shadow-strong);overflow:hidden}
+.cf-name{font-size:18px;letter-spacing:.06em;font-weight:700;word-break:break-word}
+.cf-name .sfx{font-weight:400}
+.cf-status{font-size:12px;letter-spacing:.18em;color:var(--muted);animation:tpulse 1.6s infinite}
+.cf-btns{display:flex;gap:20px;justify-content:center;align-items:center;padding-top:12px}
+.cf-btn{
+  width:70px;height:70px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;
+  border:var(--border-width) solid var(--fg);border-radius:50%;background:transparent;color:var(--fg);
+  transition:background-color .12s var(--cubic),color .12s var(--cubic),transform .12s var(--cubic),opacity .12s;
+}
+.cf-btn:hover{background:var(--fg);color:var(--bg)}
+.cf-btn:active{transform:scale(.95)}
+.cf-btn.danger{background:var(--fg);color:var(--bg)}
+.cf-btn.danger:hover{background:transparent;color:var(--fg)}
+.cf-btn.ok{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);box-shadow:var(--glow)}
+.cf-btn.ok:hover{background:var(--accent-fg);color:var(--accent);border-color:var(--accent-fg)}
+.cf-btn.off{opacity:.4}
+.cf-hint{margin-top:16px;font-size:10px;letter-spacing:.12em;color:var(--muted);text-align:center}
+/* всплывающий запрос на переписку: снизу экрана, сразу с тремя кнопками */
+.reqpop{
+  position:fixed;left:10px;right:10px;z-index:96;
+  bottom:calc(10px + env(safe-area-inset-bottom));
+  background:var(--bg);border:var(--border-width) solid var(--fg);border-radius:var(--radius-lg);
+  padding:10px 12px;box-shadow:var(--shadow-strong);
+  animation:reqIn .24s var(--cubic) both;
+}
+.reqpop .req-t{font-size:12px;letter-spacing:.06em;font-weight:700}
+.reqpop .req-b{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.reqpop .req-b .btn{flex:1;min-width:104px}
+@keyframes reqIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+/* ============ ЭКРАН ТЕМ: ПРЕСЕТЫ И ФОН ============ */
+.sw{width:20px;height:20px;flex:none;border:var(--border-width) solid var(--fg);border-radius:var(--radius)}
+/* ============ СЕГМЕНТЫ (тема, фон) ============ */
 .seg{display:flex;border:var(--border-width) solid var(--fg);border-radius:var(--radius);overflow:hidden}
 .seg-btn{
   flex:1;min-height:44px;background:transparent;border:none;border-right:var(--border-width) solid var(--fg);
@@ -411,6 +470,18 @@ textarea.inp{max-height:120px}
 @media (max-width:699px){
   #skin-btn .skin-long{display:none}
   #skin-btn .skin-short{display:inline}
+  /* звонок на мобильном — действительно на весь экран, крупнее элементы */
+  .callfull{padding:calc(env(safe-area-inset-top) + 20px) 16px calc(env(safe-area-inset-bottom) + 30px)}
+  .cf-ava{width:128px;height:128px;font-size:52px}
+  .cf-name{font-size:22px}
+  .cf-status{font-size:13px}
+  .cf-btn{width:80px;height:80px}
+  .cf-btns{gap:26px}
+  .reqpop{left:8px;right:8px}
+  .reqpop .req-b .btn{min-width:0}
+  /* на узком экране: принять/отклонить в ряд, блокировка — на всю ширину снизу */
+  .reqpop .req-b [data-rp="accept"],.reqpop .req-b [data-rp="decline"]{flex:1 1 calc(50% - 3px)}
+  .reqpop .req-b [data-rp="block"]{flex:1 1 100%}
   .members{
     position:fixed;top:0;right:0;bottom:0;width:min(320px,85vw);z-index:40;
     transform:translateX(103%);transition:transform .22s var(--cubic);
@@ -616,12 +687,6 @@ textarea.inp{max-height:120px}
   </div>
   <div class="chat-wrap">
     <div class="chat-main" id="dm-chatmain">
-      <div class="callbar hidden" id="dm-callbar">
-        <span class="call-t" id="dm-call-t">ЗВОНОК</span>
-        <span class="flex-sp"></span>
-        <button class="btn btn-mini" id="dm-call-mute">МИКРОФОН: ВКЛ</button>
-        <button class="btn btn-mini" id="dm-call-drop">ЗАВЕРШИТЬ</button>
-      </div>
       <div class="fp small muted" id="dm-fp">ОТПЕЧАТОК КЛЮЧА: —</div>
       <div class="req hidden" id="dm-req">
         <div class="req-t" id="dm-req-t"></div>
@@ -632,7 +697,7 @@ textarea.inp{max-height:120px}
         </div>
       </div>
       <div class="msglist" id="dm-msgs"></div>
-      <div class="hint">СКОвозное ШИФРОВАНИЕ ECDH. ИСТОРИЯ — ТОЛЬКО В ПАМЯТИ. ОФЛАЙН-ДОСТАВКИ НЕТ.</div>
+      <div class="hint">СКВОЗНОЕ ШИФРОВАНИЕ ECDH. ИСТОРИЯ — ТОЛЬКО В ПАМЯТИ. ОФЛАЙН-ДОСТАВКИ НЕТ.</div>
       <div class="typing hidden" id="dm-typing">
         <span class="tdot"></span><span class="tdot"></span><span class="tdot"></span>
         <span class="small">ПЕЧАТАЕТ...</span>
@@ -687,7 +752,27 @@ textarea.inp{max-height:120px}
     <button class="btn wide" id="prof-reset">СБРОСИТЬ ID</button>
     <div class="note">Сброс выдаёт новый ID. Старый перестанет работать.</div>
 
-    <div class="h">ТЕМА</div>
+    <div class="h">ОФОРМЛЕНИЕ</div>
+    <button class="btn wide" id="go-themes">ТЕМЫ И СКИНЫ</button>
+    <div class="note">Стандартные темы, свой скин (JSON) и своя картинка на фон — теперь живут в разделе «Темы».</div>
+
+    <div class="h">ЗВУК НОВЫХ СООБЩЕНИЙ</div>
+    <button class="btn wide" id="sound-btn">ЗВУК: ВКЛ</button>
+
+    <div class="h">ЗАБЛОКИРОВАННЫЕ</div>
+    <div class="list" id="blocked-list"></div>
+  </div>
+</section>
+
+<!-- ЭКРАН: ТЕМЫ И ОФОРМЛЕНИЕ -->
+<section class="screen" id="scr-themes">
+  <div class="topbar">
+    <button class="btn-top" id="themes-back">&lt; НАЗАД</button>
+    <span class="tb-title"><span class="t1">ТЕМЫ</span></span>
+    <span class="flex-sp"></span>
+  </div>
+  <div class="pad">
+    <div class="h">РЕЖИМ ТЕМЫ</div>
     <div class="seg">
       <button class="seg-btn" data-mode="light">СВЕТЛАЯ</button>
       <button class="seg-btn" data-mode="dark">ТЁМНАЯ</button>
@@ -695,7 +780,11 @@ textarea.inp{max-height:120px}
       <button class="seg-btn" data-mode="skin">СВОЙ СКИН</button>
     </div>
 
-    <div class="h">СКИН</div>
+    <div class="h">СТАНДАРТНЫЕ ТЕМЫ</div>
+    <div class="list" id="preset-list"></div>
+    <div class="note">Пресеты — это обычные скины: проходят ту же проверку и сохраняются на этом устройстве.</div>
+
+    <div class="h">СВОЙ СКИН (JSON)</div>
     <div class="note" id="skin-name">ТЕКУЩИЙ СКИН: —</div>
     <input type="file" id="skin-file" accept=".json,application/json" hidden>
     <div class="inline-row">
@@ -706,16 +795,67 @@ textarea.inp{max-height:120px}
     <textarea class="inp" id="skin-json" rows="4" spellcheck="false" autocomplete="off" placeholder='{"ssm":1,"name":"Aero","mode":"light","vars":{"--bg":"#d8ebff","--radius":"10px"}}'></textarea>
     <button class="btn wide" id="skin-apply">ПРИМЕНИТЬ</button>
 
-    <div class="h">ЗВУК НОВЫХ СООБЩЕНИЙ</div>
-    <button class="btn wide" id="sound-btn">ЗВУК: ВКЛ</button>
-
-    <div class="h">ЗАБЛОКИРОВАННЫЕ</div>
-    <div class="list" id="blocked-list"></div>
+    <div class="h">КАРТИНКА НА ФОН</div>
+    <div class="note" id="bg-state">ФОН НЕ УСТАНОВЛЕН</div>
+    <input type="file" id="bg-file" accept="image/png,image/jpeg,image/webp" hidden>
+    <div class="inline-row">
+      <button class="btn" id="bg-import">ВЫБРАТЬ КАРТИНКУ</button>
+      <button class="btn" id="bg-reset">УБРАТЬ ФОН</button>
+    </div>
+    <div class="lbl">РАЗМЕР</div>
+    <div class="seg">
+      <button class="seg-btn" data-bgs="auto">АВТО</button>
+      <button class="seg-btn" data-bgs="cover">ЗАПОЛНИТЬ</button>
+      <button class="seg-btn" data-bgs="contain">ВПИСАТЬ</button>
+    </div>
+    <div class="lbl">ПОВЕДЕНИЕ</div>
+    <div class="seg">
+      <button class="seg-btn" data-bga="scroll">ПРОКРУТКА</button>
+      <button class="seg-btn" data-bga="fixed">ЗАФИКСИРОВАТЬ</button>
+    </div>
+    <div class="note">PNG, JPEG или WebP до 1 МБ. Картинка хранится только на этом устройстве и перекрывает фон из скина.</div>
   </div>
 </section>
 
 </div><!-- /app -->
 <div id="toasts"></div>
+
+<!-- Всплывающий запрос на переписку: снизу экрана, сразу три кнопки -->
+<div id="req-pop" class="reqpop hidden" role="alertdialog" aria-live="polite">
+  <div class="req-t" id="req-pop-t"></div>
+  <div class="req-b">
+    <button class="btn btn-mini" data-rp="accept">ПРИНЯТЬ</button>
+    <button class="btn btn-mini" data-rp="decline">ОТКЛОНИТЬ</button>
+    <button class="btn btn-mini" data-rp="block">ЗАБЛОКИРОВАТЬ</button>
+  </div>
+</div>
+
+<!-- Полноэкранный звонок: входящий, исходящий и активный разговор -->
+<div id="call-full" class="callfull" role="dialog" aria-modal="true" aria-label="Звонок">
+  <div class="cf-head"><span id="cf-label">ЗВОНОК</span><span class="cf-enc">ШИФРОВАНИЕ ECDH · P2P</span></div>
+  <div class="cf-mid">
+    <div class="cf-ava" id="cf-ava" aria-hidden="true">?</div>
+    <div class="cf-name" id="cf-name">—</div>
+    <div class="cf-status" id="cf-status">ВЫЗОВ...</div>
+  </div>
+  <div class="cf-btns" id="cf-btns">
+    <button class="cf-btn" id="cf-mute" aria-label="Выключить микрофон">
+      <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+    </button>
+    <button class="cf-btn danger" id="cf-drop" aria-label="Завершить звонок">
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.5c5.2-4.4 12.8-4.4 18 0l-2.6 3a1.6 1.6 0 0 1-2 .3l-2.5-1.4a1.6 1.6 0 0 1-.8-1.4l.1-1.7a11.4 11.4 0 0 0-4.4 0l.1 1.7c0 .6-.3 1.1-.8 1.4l-2.5 1.4a1.6 1.6 0 0 1-2-.3z"/></svg>
+    </button>
+  </div>
+  <div class="cf-btns hidden" id="cf-btns-in">
+    <button class="cf-btn danger" id="cf-dec" aria-label="Отклонить звонок">
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" style="transform:rotate(135deg)"><path d="M3 10.5c5.2-4.4 12.8-4.4 18 0l-2.6 3a1.6 1.6 0 0 1-2 .3l-2.5-1.4a1.6 1.6 0 0 1-.8-1.4l.1-1.7a11.4 11.4 0 0 0-4.4 0l.1 1.7c0 .6-.3 1.1-.8 1.4l-2.5 1.4a1.6 1.6 0 0 1-2-.3z"/></svg>
+    </button>
+    <button class="cf-btn ok" id="cf-acc" aria-label="Принять звонок">
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.5c5.2-4.4 12.8-4.4 18 0l-2.6 3a1.6 1.6 0 0 1-2 .3l-2.5-1.4a1.6 1.6 0 0 1-.8-1.4l.1-1.7a11.4 11.4 0 0 0-4.4 0l.1 1.7c0 .6-.3 1.1-.8 1.4l-2.5 1.4a1.6 1.6 0 0 1-2-.3z"/></svg>
+    </button>
+  </div>
+  <div class="cf-hint">СКВОЗНОЕ ШИФРОВАНИЕ ECDH · АУДИО ИДЁТ НАПРЯМУЮ, МИМО СЕРВЕРОВ</div>
+</div>
 
 <script type="module">
 'use strict';
@@ -845,12 +985,12 @@ function applyTheme(){
 }
 function renderThemeUi(){
   const m=store.get('theme','auto');
-  document.querySelectorAll('.seg-btn').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
+  document.querySelectorAll('.seg-btn[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
   $('theme-btn').textContent='ТЕМА: '+({light:'СВЕТЛАЯ',dark:'ТЁМНАЯ',auto:'АВТО',skin:'СВОЙ СКИН'}[m]||'АВТО');
 }
 function setThemeMode(m){
   store.set('theme',m);
-  if(m==='skin'&&!store.get('customSkin',null)) toast('Скин ещё не задан — импортируйте его в профиле');
+  if(m==='skin'&&!store.get('customSkin',null)) toast('Скин ещё не задан — импортируйте его в разделе ТЕМЫ');
   applyTheme(); renderThemeUi();
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{
@@ -868,16 +1008,18 @@ async function importSkinText(text){
   if(!ok) return false;
   store.set('customSkin',v.skin);
   window.skyleSkin.apply(v.skin);
-  applyTheme(); renderThemeUi(); renderProfile();
+  applyBg();                       /* свой фон перекрывает фон скина */
+  applyTheme(); renderThemeUi(); renderThemes();
   toast('Скин применён: '+v.skin.name);
   return true;
 }
 function resetSkin(){
   store.del('customSkin');
   if(window.skyleSkin) window.skyleSkin.apply(null);
+  applyBg();
   if(store.get('theme','auto')==='skin') setThemeMode('auto');
   else{ applyTheme(); renderThemeUi(); }
-  renderProfile();
+  renderThemes();
   toast('Скин сброшен: стандартное оформление');
 }
 let skinHashBusy=false;
@@ -894,10 +1036,106 @@ async function handleSkinHash(){
     if(ok){
       store.set('customSkin',skin);
       window.skyleSkin.apply(skin);
-      applyTheme(); renderThemeUi(); renderProfile();
+      applyBg();
+      applyTheme(); renderThemeUi(); renderThemes();
       toast('Скин применён: '+skin.name);
     }
   }finally{ skinHashBusy=false; }
+}
+
+/* ---------------- РАЗДЕЛ «ТЕМЫ»: пресеты, свой фон ---------------- */
+/* Стандартные темы — обычные скины SSM: проходят тот же белый список и валидацию.
+   «КЛАССИКА» — сброс к чёрно-белому оформлению по умолчанию. */
+const PRESETS=[
+  {id:'classic',name:'КЛАССИКА',desc:'чёрно-белая, как задумано',sw:['#ffffff','#000000'],skin:null},
+  {id:'aero',name:'АЭРО',desc:'светлая стеклянная, голубой акцент',sw:['#dfeeff','#1c7ed6'],skin:{ssm:1,name:'Аэро',author:'Skyle',mode:'light',vars:{
+    '--bg':'#dfeeff','--fg':'#0b2540','--muted':'#4a6a8a','--line':'#7fb2e6','--line-soft':'#b7d7f5',
+    '--panel':'rgba(255,255,255,.55)','--panel-2':'rgba(255,255,255,.75)',
+    '--inv-bg':'#0b2540','--inv-fg':'#eaf5ff','--accent':'#1c7ed6','--accent-fg':'#ffffff',
+    '--msg-own-bg':'rgba(28,126,214,.10)','--msg-own-fg':'#0b2540',
+    '--msg-peer-bg':'rgba(255,255,255,.65)','--msg-peer-fg':'#0b2540',
+    '--topbar-bg':'rgba(11,37,64,.85)','--topbar-fg':'#eaf5ff',
+    '--radius':'12px','--radius-lg':'18px','--blur':'10px','--font':'system',
+    '--shadow':'0 8px 24px rgba(11,37,64,.12)','--shadow-strong':'0 16px 48px rgba(11,37,64,.22)'}}},
+  {id:'retro',name:'РЕТРОВОЛНА',desc:'тёмная, неон и синтивейв',sw:['#0d0221','#ff2fb3'],skin:{ssm:1,name:'Ретроволна',author:'Skyle',mode:'dark',vars:{
+    '--bg':'#0d0221','--fg':'#f8e9ff','--muted':'#9b7bb8','--line':'#ff2fb3','--line-soft':'#3a1054',
+    '--panel':'rgba(255,47,179,.08)','--panel-2':'rgba(255,47,179,.16)',
+    '--inv-bg':'#ff2fb3','--inv-fg':'#0d0221','--accent':'#ff2fb3','--accent-fg':'#ffffff',
+    '--msg-own-bg':'rgba(255,47,179,.12)','--msg-own-fg':'#f8e9ff',
+    '--msg-peer-bg':'rgba(0,255,231,.08)','--msg-peer-fg':'#f8e9ff',
+    '--topbar-bg':'rgba(13,2,33,.9)','--topbar-fg':'#f8e9ff',
+    '--radius':'4px','--radius-lg':'10px','--font':'mono','--glow':'0 0 12px rgba(255,47,179,.55)',
+    '--shadow':'0 0 16px rgba(0,255,231,.15)','--shadow-strong':'0 0 28px rgba(255,47,179,.35)'}}},
+  {id:'term',name:'ТЕРМИНАЛ',desc:'чёрный экран, зелёные буквы',sw:['#000000','#33ff66'],skin:{ssm:1,name:'Терминал',author:'Skyle',mode:'dark',vars:{
+    '--bg':'#000000','--fg':'#33ff66','--muted':'#1f9c47','--line':'#33ff66','--line-soft':'#0f3d20',
+    '--panel':'rgba(51,255,102,.06)','--panel-2':'rgba(51,255,102,.12)',
+    '--inv-bg':'#33ff66','--inv-fg':'#001a0a','--accent':'#33ff66','--accent-fg':'#001a0a',
+    '--msg-own-bg':'rgba(51,255,102,.08)','--msg-own-fg':'#33ff66','--msg-peer-bg':'rgba(0,0,0,0)','--msg-peer-fg':'#33ff66',
+    '--radius':'0','--radius-lg':'0','--font':'mono','--glow':'0 0 10px rgba(51,255,102,.4)'}}},
+  {id:'paper',name:'БУМАГА',desc:'тёплая светлая, шрифт с засечками',sw:['#f4eee3','#8a5a2b'],skin:{ssm:1,name:'Бумага',author:'Skyle',mode:'light',vars:{
+    '--bg':'#f4eee3','--fg':'#2b2118','--muted':'#8a7a66','--line':'#2b2118','--line-soft':'#ddd2bd',
+    '--panel':'#ece3d2','--panel-2':'#e2d5bd',
+    '--inv-bg':'#2b2118','--inv-fg':'#f4eee3','--accent':'#8a5a2b','--accent-fg':'#ffffff',
+    '--msg-own-bg':'rgba(138,90,43,.08)','--msg-own-fg':'#2b2118',
+    '--msg-peer-bg':'rgba(43,33,24,.05)','--msg-peer-fg':'#2b2118',
+    '--radius':'6px','--radius-lg':'10px','--font':'serif','--shadow':'0 4px 14px rgba(43,33,24,.10)'}}}
+];
+/* своя картинка на фон: живёт отдельно от скина и перекрывает его --bg-image */
+function applyBg(){
+  const st=document.documentElement.style;
+  ['--bg-image','--bg-size','--bg-attachment'].forEach(k=>st.removeProperty(k));
+  const bg=store.get('customBg',null);
+  if(!bg||!bg.img||!window.skyleSkin) return;
+  const v=window.skyleSkin.validate({ssm:1,name:'__bg',mode:'light',
+    vars:{'--bg-image':bg.img,'--bg-size':String(bg.size||'cover'),'--bg-attachment':String(bg.attach||'fixed')}});
+  if(!v.ok) return;
+  for(const k of ['--bg-image','--bg-size','--bg-attachment']) if(v.skin.vars[k]) st.setProperty(k,v.skin.vars[k]);
+}
+function isPresetActive(p,cur){
+  if(!p.skin) return !cur;
+  if(!cur||cur.name!==p.skin.name) return false;
+  try{ const v=window.skyleSkin.validate(p.skin); return v.ok&&JSON.stringify(v.skin.vars)===JSON.stringify(cur.vars); }
+  catch(e){ return false; }
+}
+async function applyPreset(id){
+  const p=PRESETS.find(x=>x.id===id); if(!p) return;
+  if(!p.skin){ /* КЛАССИКА: сброс скина */
+    store.del('customSkin');
+    if(window.skyleSkin) window.skyleSkin.apply(null);
+    applyBg();
+    if(store.get('theme','auto')==='skin') store.set('theme','auto');
+    applyTheme(); renderThemeUi(); renderThemes();
+    toast('Тема применена: '+p.name);
+    return;
+  }
+  const v=window.skyleSkin.validate(p.skin);
+  if(!v.ok){ toast('Встроенная тема повреждена — сообщите разработчику'); return; }
+  store.set('customSkin',v.skin);
+  window.skyleSkin.apply(v.skin);
+  applyBg();
+  store.set('theme','skin');
+  applyTheme(); renderThemeUi(); renderThemes();
+  toast('Тема применена: '+p.name);
+}
+function renderThemes(){
+  const pl=$('preset-list'); if(!pl) return;
+  renderThemeUi();
+  const cur=store.get('customSkin',null);
+  $('skin-name').textContent='ТЕКУЩИЙ СКИН: '+((cur&&cur.name)?cur.name:'—')+((cur&&cur.author)?' · АВТОР: '+cur.author:'');
+  pl.innerHTML=PRESETS.map((p,i)=>
+    '<div class="row stag" style="animation-delay:'+Math.min(i,9)*30+'ms">'+
+    '<span class="sw" style="background:'+esc(p.sw[0])+';border-color:'+esc(p.sw[1])+'"></span>'+
+    '<div class="row-main"><div class="row-t">'+esc(p.name)+'</div>'+
+    '<div class="row-s muted small">'+esc(p.desc)+'</div></div>'+
+    '<div class="row-btns"><button class="btn btn-mini" data-preset="'+esc(p.id)+'">'+(isPresetActive(p,cur)?'АКТИВНА':'ПРИМЕНИТЬ')+'</button></div></div>').join('');
+  const bg=store.get('customBg',null);
+  $('bg-state').textContent=(bg&&bg.img)?'ФОН УСТАНОВЛЕН':'ФОН НЕ УСТАНОВЛЕН';
+  document.querySelectorAll('.seg-btn[data-bgs]').forEach(b=>b.classList.toggle('on',(bg&&bg.size||'cover')===b.dataset.bgs));
+  document.querySelectorAll('.seg-btn[data-bga]').forEach(b=>b.classList.toggle('on',(bg&&bg.attach||'fixed')===b.dataset.bga));
+}
+function openThemes(){
+  S.themesFrom=(S.screen&&S.screen!=='scr-themes')?S.screen:'scr-menu';
+  showScreen('scr-themes');
 }
 
 /* ---------------- ЗВУК (WebAudio) ---------------- */
@@ -1063,32 +1301,51 @@ async function showWhatsnew(){
 
 /* ---------------- ЗВОНКИ (WebRTC, только микрофон) ---------------- */
 const C={dm:null,room:null,incoming:null};   /* активные звонки и входящий вызов */
-let incModal=null;
 function getMic(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia) return Promise.reject(new Error('no media'));
   return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
 }
 function fmtDur(ms){ const s=Math.floor(ms/1000),m=Math.floor(s/60); return m+':'+String(s%60).padStart(2,'0'); }
-/* сигналы звонка: повторяющиеся бипы WebAudio (не зависят от «звука сообщений») */
+/* сигналы звонка: повторяющиеся циклы WebAudio (не зависят от «звука сообщений»)
+   «back» — дозвон: стандартные гудки АТС — тон 425 Гц, 1 секунда звучания / 4 секунды паузы;
+   «ring» — рингтон входящего: «офисный телефон» — резкая двухтональная трель
+            440/480 Гц (переключение каждые 40 мс) ~1,2 с, затем пауза 2,4 с */
 let toneTimer=null;
+function toneStop(){ if(toneTimer){ clearInterval(toneTimer); toneTimer=null; } }
+function toneCycle(play){
+  try{
+    audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended') audioCtx.resume();
+    play(audioCtx,audioCtx.currentTime);
+  }catch(e){}
+}
 function toneLoop(kind){
   toneStop();
-  const pat=kind==='ring'?[[880,.22],[660,.22]]:[[440,.4],[480,.4]];
-  let step=0;
-  const play=()=>{
-    try{
-      audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
-      if(audioCtx.state==='suspended') audioCtx.resume();
-      const [f,d]=pat[step%pat.length]; step++;
-      const t=audioCtx.currentTime,o=audioCtx.createOscillator(),g=audioCtx.createGain();
-      o.type='sine'; o.frequency.value=f;
-      g.gain.setValueAtTime(.1,t); g.gain.exponentialRampToValueAtTime(.0001,t+d);
-      o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+d+.02);
-    }catch(e){}
-  };
-  play(); toneTimer=setInterval(play,1800);
+  if(kind==='back'){
+    const play=(ctx,t)=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.type='sine'; o.frequency.value=425;
+      g.gain.setValueAtTime(.0001,t);
+      g.gain.linearRampToValueAtTime(.12,t+.02);
+      g.gain.setValueAtTime(.12,t+.96);
+      g.gain.linearRampToValueAtTime(.0001,t+1.0);
+      o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t+1.05);
+    };
+    toneCycle(play); toneTimer=setInterval(()=>toneCycle(play),5000);
+  }else{
+    const play=(ctx,t)=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.type='triangle';
+      for(let i=0;i<30;i++) o.frequency.setValueAtTime(i%2?480:440,t+i*.04); /* трель 440<->480 */
+      g.gain.setValueAtTime(.0001,t);
+      g.gain.linearRampToValueAtTime(.12,t+.01);
+      g.gain.setValueAtTime(.12,t+1.16);
+      g.gain.linearRampToValueAtTime(.0001,t+1.2);
+      o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t+1.25);
+    };
+    toneCycle(play); toneTimer=setInterval(()=>toneCycle(play),3600);
+  }
 }
-function toneStop(){ if(toneTimer){ clearInterval(toneTimer); toneTimer=null; } }
 
 /* ожидаем появления пира в личном канале: после пересоздания канала «слепые» посылки теряются */
 async function waitDmPeer(ch,tries){
@@ -1115,18 +1372,46 @@ function pushCallStream(room,stream,tag){
   },n*700);
   attempt(1);
 }
-/* ---- личный звонок 1-на-1: медиа идёт через ящик адресата ---- */
+/* ---- полноэкранный интерфейс звонка (личные звонки и входящий вызов) ---- */
+function callFullShow(){
+  const el=$('call-full');
+  el.classList.remove('hidden');
+  requestAnimationFrame(()=>el.classList.add('show'));
+}
+function callFullHide(){
+  const el=$('call-full');
+  el.classList.remove('show');
+  setTimeout(()=>{ if(!el.classList.contains('show')) el.classList.add('hidden'); },260);
+}
+function setCallWho(nick,pid){
+  const n=String(nick||pid||'?');
+  $('cf-name').innerHTML=esc(n)+'<span class="sfx muted">#'+esc(sfxOf(pid))+'</span>';
+  $('cf-ava').textContent=(n.trim().charAt(0)||'?').toUpperCase();
+}
+function syncCfMute(){
+  const c=C.dm; if(!c) return;
+  let on=false; try{ const t=c.stream.getAudioTracks()[0]; on=t?t.enabled:false; }catch(e){}
+  const b=$('cf-mute');
+  b.classList.toggle('off',!on);
+  b.setAttribute('aria-label',on?'Выключить микрофон':'Включить микрофон');
+}
+/* состояние оверлея под текущий звонок: исходящий / активный */
 function dmCallBar(){
-  const on=!!C.dm;
-  $('dm-callbar').classList.toggle('hidden',!on);
-  if(on){ $('dm-call-t').textContent='ВЫЗОВ...'; $('dm-call-mute').textContent='МИКРОФОН: ВКЛ'; }
+  const c=C.dm; if(!c) return;
+  $('cf-label').textContent='ЛИЧНЫЙ ЗВОНОК';
+  setCallWho((findDialog(c.pid)||{}).nick||c.pid,c.pid);
+  $('cf-btns').classList.remove('hidden');
+  $('cf-btns-in').classList.add('hidden');
+  if(!c.answered) $('cf-status').textContent='ВЫЗОВ...';
+  syncCfMute();
+  callFullShow();
 }
 function dmCallTimerStart(){
   if(!C.dm) return;
   C.dm.t0=Date.now();
   clearInterval(C.dm.timer);
-  $('dm-call-t').textContent='0:00';
-  C.dm.timer=setInterval(()=>{ if(C.dm) $('dm-call-t').textContent=fmtDur(Date.now()-C.dm.t0); },500);
+  $('cf-status').textContent='0:00';
+  C.dm.timer=setInterval(()=>{ if(C.dm) $('cf-status').textContent=fmtDur(Date.now()-C.dm.t0); },500);
 }
 function dmRemoteAttach(){
   const c=C.dm; if(!c||!c.rem) return;
@@ -1179,26 +1464,20 @@ function dmCallDecline(){
   dmDeclineTo(pid,{});
 }
 function incomingClose(){
-  if(C.incoming){ if(C.incoming.timer) clearTimeout(C.incoming.timer); C.incoming=null; }
+  if(C.incoming){ if(C.incoming.timer) clearTimeout(C.incoming.timer); C.incoming=null; callFullHide(); }
   toneStop();
-  if(incModal){ try{ incModal.remove(); }catch(e){} incModal=null; }
 }
+/* входящий звонок — тот же полноэкранный экран с кнопками принять/отклонить */
 function showIncoming(pid,nick){
   incomingClose();
   C.incoming={pid,timer:null};
   toneLoop('ring');
-  const w=document.createElement('div'); w.className='modal wn-in';
-  const box=document.createElement('div'); box.className='modal-box';
-  const t=document.createElement('div'); t.className='wn-title'; t.textContent='ВХОДЯЩИЙ ЗВОНОК';
-  const tx=document.createElement('div'); tx.className='modal-text'; tx.style.marginTop='10px';
-  tx.innerHTML=esc(nick)+'<span class="sfx muted">#'+esc(sfxOf(pid))+'</span>';
-  const br=document.createElement('div'); br.className='modal-btns';
-  const dec=document.createElement('button'); dec.className='btn'; dec.textContent='ОТКЛОНИТЬ';
-  const acc=document.createElement('button'); acc.className='btn btn-primary'; acc.textContent='ПРИНЯТЬ';
-  dec.onclick=()=>dmCallDecline();
-  acc.onclick=()=>dmCallAccept();
-  br.append(dec,acc); box.append(t,tx,br); w.append(box); document.body.append(w);
-  incModal=w;
+  $('cf-label').textContent='ВХОДЯЩИЙ ЗВОНОК';
+  setCallWho(nick,pid);
+  $('cf-status').textContent='ЗВОНЯТ ВАМ';
+  $('cf-btns').classList.add('hidden');
+  $('cf-btns-in').classList.remove('hidden');
+  callFullShow();
   C.incoming.timer=setTimeout(()=>{ if(C.incoming&&C.incoming.pid===pid) dmCallDecline(); },30000);
 }
 function dmCallEnd(note,silent){
@@ -1214,7 +1493,7 @@ function dmCallEnd(note,silent){
   try{ c.room.removeStream(c.stream); }catch(e){}
   try{ c.stream.getTracks().forEach(t=>t.stop()); }catch(e){}
   if(c.el){ try{ c.el.srcObject=null; }catch(e){} }
-  $('dm-callbar').classList.add('hidden');
+  callFullHide();
   if(note) toast(note);
 }
 async function onDmCallReq(f,env,key){
@@ -1337,6 +1616,7 @@ function showScreen(id,back){
   S.screen=id;
   if(id==='scr-menu'){ renderRooms(); renderPublic(); renderDms(); if(S.tab==='rooms') previewMyRooms(); }
   if(id==='scr-profile') renderProfile();
+  if(id==='scr-themes') renderThemes();
 }
 function fatal(text){ try{ $('err-text').textContent=text; showScreen('scr-error'); }catch(e){ alert(text); } }
 
@@ -2159,8 +2439,7 @@ async function onDmHello(f,env){
   const d=findDialog(f);
   if(!d&&!S.requests.some(r=>r.pid===f)){
     S.requests.push({pid:f,nick:String(env.n||f).slice(0,20),pub:env.k,ts:Date.now(),msgs:[]});
-    saveRequests(); renderDms(); beep();
-    toast(String(env.n||f)+'#'+sfxOf(f)+' ХОЧЕТ НАПИСАТЬ ВАМ');
+    saveRequests(); renderDms(); beep();   /* renderDms показывает панель внизу экрана */
   }
   if(!d&&env.k){ /* запрос без ключа не расшифровать — сохраняем ключ */
     const r=S.requests.find(x=>x.pid===f); if(r&&!r.pub) r.pub=env.k; saveRequests();
@@ -2400,6 +2679,7 @@ function renderDms(){
       '<button class="btn btn-mini" data-req="decline:'+esc(r.pid)+'">ОТКЛОНИТЬ</button>'+
       '<button class="btn btn-mini" data-req="block:'+esc(r.pid)+'">ЗАБЛОКИРОВАТЬ</button>'+
     '</div></div>').join('');
+  syncReqPop(); /* панель «хочет написать» внизу — держим в актуальном состоянии */
   const dl=$('dm-list');
   if(!S.dialogs.length){ dl.innerHTML='<div class="note" style="padding:10px">ДИАЛОГОВ НЕТ. НАПИШИТЕ ПО ID ИЛИ НАЙДИТЕ ЛЮДЕЙ В КОМНАТАХ.</div>'; return; }
   dl.innerHTML=S.dialogs.map((d,i)=>
@@ -2410,6 +2690,15 @@ function renderDms(){
       (d.online===true?'в сети':d.online===false?'не в сети':'статус неизвестен')+'</div></div>'+
     '<div class="row-btns"><button class="btn btn-mini" data-dm="open:'+esc(d.pid)+'">ОТКРЫТЬ</button></div></div>').join('');
 }
+/* всплывающий запрос на переписку: показываем последний неразобранный снизу экрана */
+function syncReqPop(){
+  const box=$('req-pop'); if(!box) return;
+  const r=S.requests.length?S.requests[S.requests.length-1]:null;
+  if(!r){ box.classList.add('hidden'); box.dataset.pid=''; return; }
+  box.dataset.pid=r.pid;
+  $('req-pop-t').textContent=r.nick+'#'+sfxOf(r.pid)+' ХОЧЕТ НАПИСАТЬ ВАМ';
+  box.classList.remove('hidden');
+}
 
 /* ---------------- ПРОФИЛЬ ---------------- */
 function renderProfile(){
@@ -2417,8 +2706,6 @@ function renderProfile(){
   $('prof-id').textContent=S.pid;
   $('sound-btn').textContent='ЗВУК: '+(store.get('sound',true)?'ВКЛ':'ВЫКЛ');
   renderThemeUi();
-  const sk=store.get('customSkin',null);
-  $('skin-name').textContent='ТЕКУЩИЙ СКИН: '+((sk&&sk.name)?sk.name:'—')+((sk&&sk.author)?' · АВТОР: '+sk.author:'');
   const bl=$('blocked-list');
   if(!S.blocked.length){ bl.innerHTML='<div class="note" style="padding:4px 0">СПИСОК ПУСТ.</div>'; return; }
   bl.innerHTML=S.blocked.map(b=>
@@ -2488,11 +2775,7 @@ function bindUi(){
   document.querySelectorAll('[data-back]').forEach(b=>
     b.addEventListener('click',()=>{ if(b.dataset.back==='scr-join') cancelJoin(); showScreen(b.dataset.back,true); }));
   $('profile-btn').onclick=()=>{ renderProfile(); showScreen('scr-profile'); };
-  $('theme-btn').onclick=()=>{
-    const order=['light','dark','auto','skin'];
-    const cur=store.get('theme','auto');
-    setThemeMode(order[(order.indexOf(cur)+1)%order.length]);
-  };
+  $('theme-btn').onclick=openThemes; /* кнопка ТЕМА в шапке открывает раздел «Темы» */
   $('skin-btn').onclick=()=>{ try{ window.open('https://triuzed.github.io/skyle/SSM','_blank','noopener,noreferrer'); }catch(e){} };
   document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
     S.tab=t.dataset.tab;
@@ -2581,12 +2864,15 @@ function bindUi(){
   $('dm-back').onclick=()=>{ S.curDm=null; renderDms(); showScreen('scr-menu',true); };
   $('dm-call').onclick=()=>{ if(C.dm) dmCallEnd('Звонок завершён'); else dmCallStart(); };
   $('dm-more').onclick=()=>dmMoreMenu();
-  $('dm-call-drop').onclick=()=>dmCallEnd('Звонок завершён');
-  $('dm-call-mute').onclick=()=>{
+  /* полноэкранный звонок: микрофон, сброс, принять/отклонить */
+  $('cf-mute').onclick=()=>{
     if(!C.dm) return;
     const t=C.dm.stream.getAudioTracks()[0]; if(!t) return;
-    t.enabled=!t.enabled; $('dm-call-mute').textContent='МИКРОФОН: '+(t.enabled?'ВКЛ':'ВЫКЛ');
+    t.enabled=!t.enabled; syncCfMute();
   };
+  $('cf-drop').onclick=()=>{ if(C.dm) dmCallEnd('Звонок завершён'); };
+  $('cf-acc').onclick=()=>dmCallAccept();
+  $('cf-dec').onclick=()=>dmCallDecline();
   $('dm-send').onclick=sendDmMessage;
   $('dm-attach').onclick=()=>$('dm-file').click();
   $('dm-file').addEventListener('change',e=>{ const f=e.target.files[0]; const d=curDialog(); if(f&&d) sendFile(f,{type:'dm',dialog:d}); e.target.value=''; });
@@ -2598,6 +2884,14 @@ function bindUi(){
     if(b.dataset.req==='accept') acceptRequest(pid);
     if(b.dataset.req==='decline') declineRequest(pid);
     if(b.dataset.req==='block'){ const r=S.requests.find(x=>x.pid===pid); blockUser(pid,r?r.nick:''); }
+  });
+  /* всплывающий запрос на переписку (внизу экрана) */
+  $('req-pop').addEventListener('click',e=>{
+    const b=e.target.closest('[data-rp]'); if(!b) return;
+    const pid=$('req-pop').dataset.pid; if(!pid) return;
+    if(b.dataset.rp==='accept') acceptRequest(pid);
+    if(b.dataset.rp==='decline') declineRequest(pid);
+    if(b.dataset.rp==='block'){ const r=S.requests.find(x=>x.pid===pid); blockUser(pid,r?r.nick:''); }
   });
   /* меню-списки (делегирование) */
   $('rooms-list').addEventListener('click',e=>{
@@ -2634,12 +2928,48 @@ function bindUi(){
   };
   $('prof-copy').onclick=()=>copyText(S.pid);
   $('prof-reset').onclick=resetPersonalId;
-  document.querySelectorAll('.seg-btn').forEach(b=>b.onclick=()=>setThemeMode(b.dataset.mode));
+  $('go-themes').onclick=openThemes;
   $('sound-btn').onclick=()=>{ store.set('sound',!store.get('sound',true)); renderProfile(); };
   $('blocked-list').addEventListener('click',e=>{
     const b=e.target.closest('[data-unblock]'); if(!b) return;
     S.blocked=S.blocked.filter(x=>x.pid!==b.dataset.unblock);
     saveBlocked(); renderProfile(); toast('Разблокирован: '+b.dataset.unblock);
+  });
+  /* раздел «Темы»: назад, режим темы, стандартные пресеты */
+  $('themes-back').onclick=()=>showScreen(S.themesFrom==='scr-profile'?'scr-profile':'scr-menu',true);
+  document.querySelectorAll('.seg-btn[data-mode]').forEach(b=>b.onclick=()=>setThemeMode(b.dataset.mode));
+  $('preset-list').addEventListener('click',e=>{
+    const b=e.target.closest('[data-preset]'); if(b) applyPreset(b.dataset.preset);
+  });
+  /* своя картинка на фон: выбор, размер, поведение, сброс */
+  $('bg-import').onclick=()=>$('bg-file').click();
+  $('bg-file').addEventListener('change',e=>{
+    const f=e.target.files[0]; e.target.value='';
+    if(!f) return;
+    if(!/^image\/(png|jpe?g|webp)$/i.test(f.type)){ toast('Поддерживаются PNG, JPEG и WebP'); return; }
+    if(f.size>1000000){ toast('Картинка больше 1 МБ'); return; }
+    const r=new FileReader();
+    r.onload=()=>{
+      const img=String(r.result||'');
+      const v=window.skyleSkin.validate({ssm:1,name:'__bg',mode:'light',vars:{'--bg-image':img}});
+      if(!v.ok||!v.skin.vars['--bg-image']){ toast('Эту картинку нельзя поставить на фон'); return; }
+      const bg=store.get('customBg',{size:'cover',attach:'fixed'});
+      bg.img=img; store.set('customBg',bg);
+      applyBg(); renderThemes(); toast('Фон установлен');
+    };
+    r.onerror=()=>toast('Не удалось прочитать файл');
+    r.readAsDataURL(f);
+  });
+  $('bg-reset').onclick=()=>{ store.del('customBg'); applyBg(); renderThemes(); toast('Фон убран'); };
+  document.querySelectorAll('.seg-btn[data-bgs]').forEach(b=>b.onclick=()=>{
+    const bg=store.get('customBg',null);
+    if(!bg||!bg.img){ toast('Сначала выберите картинку фона'); return; }
+    bg.size=b.dataset.bgs; store.set('customBg',bg); applyBg(); renderThemes();
+  });
+  document.querySelectorAll('.seg-btn[data-bga]').forEach(b=>b.onclick=()=>{
+    const bg=store.get('customBg',null);
+    if(!bg||!bg.img){ toast('Сначала выберите картинку фона'); return; }
+    bg.attach=b.dataset.bga; store.set('customBg',bg); applyBg(); renderThemes();
   });
   /* скины: файл, вставка JSON, сброс, ссылка #skin= */
   $('skin-import').onclick=()=>$('skin-file').click();
@@ -2663,7 +2993,7 @@ function closeMembersPanel(){ $('room-members').classList.remove('open'); $('roo
 function startNet(){ if(netUp||!T.mod) return; netUp=true; joinLobby(); openDmInbox(); }
 (async function init(){
   try{
-    bindUi(); vvInit(); applyTheme(); renderThemeUi();
+    bindUi(); vvInit(); applyTheme(); renderThemeUi(); applyBg(); /* фон применён и до отрисовки (head), это страховка */
     if(!window.RTCPeerConnection){ fatal('WebRTC недоступен в этом браузере. Skyle работает на прямых P2P-соединениях (WebRTC).'); return; }
     if(!(window.crypto&&crypto.subtle)){ fatal('Web Crypto недоступен. Откройте Skyle по https или на localhost.'); return; }
     S.pid=store.get('pid',null);
@@ -2687,7 +3017,7 @@ function startNet(){ if(netUp||!T.mod) return; netUp=true; joinLobby(); openDmIn
 addEventListener('pagehide',()=>{ if(C.dm) dmCallEnd(null,true); if(C.room) roomCallEnd(null); if(S.room) leaveRoom(); for(const pid of [...S.chans.keys()]) closeDmChannel(pid); });
 
 /* Доступ для автотестов (на работу не влияет) */
-window.__skyle={S,C,showScreen,renderRoomLog,renderDmLog,renderDmHeader,renderMembers,renderDms,renderRooms,renderPublic,renderProfile,applyTheme,esc,sfxOf,deleteDialog};
+window.__skyle={S,C,showScreen,renderRoomLog,renderDmLog,renderDmHeader,renderMembers,renderDms,renderRooms,renderPublic,renderProfile,renderThemes,applyTheme,applyPreset,applyBg,syncReqPop,esc,sfxOf,deleteDialog};
 </script>
 </body>
 </html>
