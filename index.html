@@ -789,6 +789,11 @@ textarea.inp{max-height:120px}
     <div class="h">ЗВУК НОВЫХ СООБЩЕНИЙ</div>
     <button class="btn wide" id="sound-btn">ЗВУК: ВКЛ</button>
 
+    <div class="h">СВОИ ЗВУКИ</div>
+    <div class="list" id="snd-list"></div>
+    <input type="file" id="snd-file" accept="audio/mpeg,audio/ogg,audio/wav,audio/mp4,audio/x-m4a,audio/aac,audio/webm,.mp3,.ogg,.oga,.wav,.m4a,.mp4,.aac,.opus,.webm" hidden>
+    <div class="note">MP3, OGG, WAV, M4A — до 400 КБ и до 30 секунд каждый. Хранятся только на этом устройстве. Звонки звучат даже при выключенном «звуке сообщений».</div>
+
     <div class="h">ЗАБЛОКИРОВАННЫЕ</div>
     <div class="list" id="blocked-list"></div>
   </div>
@@ -1183,15 +1188,65 @@ function openThemes(){
 
 /* ---------------- ЗВУК (WebAudio) ---------------- */
 let audioCtx=null;
-function beep(){
+/* ---------------- ЗВУКИ: СТАНДАРТНЫЕ И СВОИ ----------------
+   Четыре слота: «ring» — рингтон входящего звонка, «back» — дозвон исходящего,
+   «in»/«out» — входящее/исходящее сообщение. Свой звук хранится в localStorage
+   как data-URI, декодируется в AudioBuffer и кешируется. Звонки (ring/back)
+   не зависят от переключателя «ЗВУК НОВЫХ СООБЩЕНИЙ» — он глушит только сообщения. */
+const SND_SLOTS={ring:'РИНГТОН (ВХОДЯЩИЙ ЗВОНОК)',back:'ДОЗВОН (ИСХОДЯЩИЙ ЗВОНОК)',in:'ВХОДЯЩЕЕ СООБЩЕНИЕ',out:'ИСХОДЯЩЕЕ СООБЩЕНИЕ'};
+const SND_MAX=400*1024, SND_MAX_DUR=30;   /* лимиты своего звука: 400 КБ и 30 секунд */
+const sndBufs=new Map();                  /* slot -> AudioBuffer (кеш декодированного) */
+function sndCustom(slot){ const s=store.get('customSounds',null); return (s&&s[slot]&&s[slot].d)?s[slot]:null; }
+function sndCtx(){
+  audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  return audioCtx;
+}
+async function sndDecode(slot){
+  if(sndBufs.has(slot)) return sndBufs.get(slot);
+  const c=sndCustom(slot); if(!c) return null;
+  try{
+    const ab=await (await fetch(c.d)).arrayBuffer();
+    const buf=await sndCtx().decodeAudioData(ab);
+    sndBufs.set(slot,buf); return buf;
+  }catch(e){ sndBufs.delete(slot); return null; }
+}
+/* однократное проигрывание своего звука; false — своего звука нет */
+async function sndPlayOnce(slot){
+  const buf=await sndDecode(slot); if(!buf) return false;
+  try{ const ctx=sndCtx(),src=ctx.createBufferSource(),g=ctx.createGain();
+    g.gain.value=.9; src.buffer=buf; src.connect(g); g.connect(ctx.destination); src.start();
+  }catch(e){}
+  return true;
+}
+/* циклическое проигрывание своего звука с паузой gapMs между повторами; возвращает stop-функцию */
+async function sndPlayLoop(slot,gapMs){
+  const buf=await sndDecode(slot); if(!buf) return null;
+  let stop=false,src=null,timer=null;
+  const step=()=>{ if(stop) return;
+    try{ const ctx=sndCtx(),g=ctx.createGain();
+      g.gain.value=.9; src=ctx.createBufferSource(); src.buffer=buf;
+      src.connect(g); g.connect(ctx.destination); src.start();
+    }catch(e){ return; }
+    timer=setTimeout(step,buf.duration*1000+(gapMs||0));
+  };
+  step();
+  return ()=>{ stop=true; if(timer) clearTimeout(timer); try{ if(src) src.stop(); }catch(e){} };
+}
+/* сообщение: свой звук, иначе стандартный короткий сигнал; «звук сообщений» глушит оба */
+function sndMsg(kind){
   try{
     if(!store.get('sound',true)) return;
-    audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
-    if(audioCtx.state==='suspended') audioCtx.resume();
-    const t=audioCtx.currentTime, o=audioCtx.createOscillator(), g=audioCtx.createGain();
-    o.type='square'; o.frequency.value=880;
+    sndPlayOnce(kind).then(done=>{ if(!done) synthTone(kind==='out'?660:880); });
+  }catch(e){}
+}
+/* стандартный короткий сигнал (синтез) */
+function synthTone(freq){
+  try{
+    const ctx=sndCtx(),t=ctx.currentTime,o=ctx.createOscillator(),g=ctx.createGain();
+    o.type='square'; o.frequency.value=freq||880;
     g.gain.setValueAtTime(0.05,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.15);
-    o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+0.16);
+    o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t+0.16);
   }catch(e){}
 }
 
@@ -1353,8 +1408,12 @@ function fmtDur(ms){ const s=Math.floor(ms/1000),m=Math.floor(s/60); return m+':
    «back» — дозвон: стандартные гудки АТС — тон 425 Гц, 1 секунда звучания / 4 секунды паузы;
    «ring» — рингтон входящего: «офисный телефон» — резкая двухтональная трель
             440/480 Гц (переключение каждые 40 мс) ~1,2 с, затем пауза 2,4 с */
-let toneTimer=null;
-function toneStop(){ if(toneTimer){ clearInterval(toneTimer); toneTimer=null; } }
+let toneTimer=null,toneStopFn=null,toneGen=0;
+function toneStop(){
+  toneGen++;                                    /* глушим и синтез, и запущенный свой звук */
+  if(toneTimer){ clearInterval(toneTimer); toneTimer=null; }
+  if(toneStopFn){ try{ toneStopFn(); }catch(e){} toneStopFn=null; }
+}
 function toneCycle(play){
   try{
     audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
@@ -1364,6 +1423,16 @@ function toneCycle(play){
 }
 function toneLoop(kind){
   toneStop();
+  const gen=toneGen;
+  /* свой звук: цикл с паузой между повторами (пока грузится — синтез не запускаем) */
+  if(sndCustom(kind)){
+    sndPlayLoop(kind,kind==='ring'?800:1500).then(stop=>{
+      if(!stop) return;
+      if(gen!==toneGen){ stop(); return; }      /* пока декодировали, звонок уже прервали */
+      toneStopFn=stop;
+    });
+    return;
+  }
   if(kind==='back'){
     const play=(ctx,t)=>{
       const o=ctx.createOscillator(),g=ctx.createGain();
@@ -2021,7 +2090,7 @@ async function onRoomMsg(p,tpid){
       if(!m){ m={nick:String(p.nick||'?').slice(0,20),pid:String(p.pid||'???????').slice(0,8),pub:null}; r.members.set(tpid,m); }
       const text=p.text.slice(0,4000);
       r.log.push({kind:'msg',self:false,nick:m.nick,pid:m.pid,time:nowTime(),text,showSfx:collides(m.nick,m.pid)});
-      renderRoomLog(); beep();
+      renderRoomLog(); sndMsg('in');
       break;
     }
     case 'typ':{
@@ -2087,6 +2156,7 @@ function sendMessage(){
   r.log.push({kind:'msg',self:true,nick:S.nick,pid:S.pid,time:nowTime(),text,showSfx:collides(S.nick,S.pid)});
   renderRoomLog();
   encSend(r.acts.x,r.key,{t:'msg',id:uid(),text,nick:S.nick,pid:S.pid,ts:Date.now()});
+  sndMsg('out');
 }
 function roomTypingPing(){
   if(!S.room) return;
@@ -2433,6 +2503,15 @@ async function onDmEnvelope(env){
     if(env.k&&d&&!d.pub){ d.pub=env.k; saveDialogs(); }
     const key=await deriveDmKey(jwk);
     if(!key) return;
+    /* учим ник из любого конверта: раньше он приходил только из pm, из-за чего
+       в списке диалогов висел голый ID, пока собеседник что-нибудь не напишет */
+    if(d&&env.n&&typeof env.n==='string'){
+      const nn=env.n.slice(0,20);
+      if(nn&&d.nick!==nn){
+        d.nick=nn; saveDialogs();
+        if(S.curDm===f) renderDmHeader(); else renderDms();
+      }
+    }
     switch(env.t){
       case 'hi':   onDmHello(f,env); break;
       case 'hey':  if(d&&env.k&&!d.pub){ d.pub=env.k; saveDialogs(); flushOutbox(d); if(S.curDm===f){ renderDmHeader(); } dmPing(f); } break;
@@ -2482,16 +2561,20 @@ async function onDmHello(f,env){
   const d=findDialog(f);
   if(!d&&!S.requests.some(r=>r.pid===f)){
     S.requests.push({pid:f,nick:String(env.n||f).slice(0,20),pub:env.k,ts:Date.now(),msgs:[]});
-    saveRequests(); renderDms(); beep();   /* renderDms показывает панель внизу экрана */
+    saveRequests(); renderDms(); sndMsg('in');   /* renderDms показывает панель внизу экрана */
   }
   if(!d&&env.k){ /* запрос без ключа не расшифровать — сохраняем ключ */
     const r=S.requests.find(x=>x.pid===f); if(r&&!r.pub) r.pub=env.k; saveRequests();
   }
-  /* отвечаем hey: даём свой публичный ключ, чтобы собеседник мог шифровать */
+  /* отвечаем hey: даём свой публичный ключ, чтобы собеседник мог шифровать.
+     Ретраим трижды: канал может открыться позже сигналинга, слепая посылка теряется */
   (async()=>{
-    const ch=ensureDmChannel(f);
-    if(ch) await waitDmPeer(ch,10);
-    try{ chanSend(f,{v:1,t:'hey',f:S.pid,n:S.nick,k:S.pubJwk}); }catch(e){}
+    for(let i=0;i<3;i++){
+      const ch=ensureDmChannel(f);
+      if(ch) await waitDmPeer(ch,8);
+      try{ chanSend(f,{v:1,t:'hey',f:S.pid,n:S.nick,k:S.pubJwk}); }catch(e){}
+      await sleep(1200);
+    }
   })();
   if(d){ d.online=null; dmPing(f); }
 }
@@ -2502,15 +2585,14 @@ async function onDmPm(f,env,key){
   const req=S.requests.find(r=>r.pid===f);
   if(req){ /* ещё не принят: прячем содержимое до принятия */
     req.msgs.push({id:p.id,text,ts:p.ts||Date.now()});
-    saveRequests(); renderDms(); beep(); return;
+    saveRequests(); renderDms(); sndMsg('in'); return;
   }
   let d=findDialog(f);
   if(!d){
     S.requests.push({pid:f,nick:String(env.n||f).slice(0,20),pub:env.k,ts:Date.now(),msgs:[{id:p.id,text,ts:p.ts||Date.now()}]});
-    saveRequests(); renderDms(); beep(); return;
+    saveRequests(); renderDms(); sndMsg('in'); return;
   }
   d.pub=env.k||d.pub;
-  if(env.n) d.nick=String(env.n).slice(0,20);
   d.log.push({kind:'msg',self:false,nick:d.nick,pid:f,time:fmtTime(p.ts||Date.now()),text});
   hideDmTyping();
   if(S.curDm!==f||document.hidden){ d.unread=(d.unread||0)+1; }
@@ -2518,7 +2600,7 @@ async function onDmPm(f,env,key){
   if(S.curDm===f) renderDmLog();
   const u=document.querySelector('[data-un="'+f+'"]');
   if(u){ u.classList.remove('pop'); void u.offsetWidth; u.classList.add('pop'); }
-  beep();
+  sndMsg('in');
   try{ chanSend(f,{v:1,t:'ack',f:S.pid,n:S.nick,k:S.pubJwk,p:await seal(key,{id:p.id})}); }catch(e){}
   ensureDmChannel(f);
 }
@@ -2591,6 +2673,7 @@ function openDm(pid,nick,pub){
   if(nick) d.nick=nick;
   if(pub&&!d.pub) d.pub=pub;
   if(T.mod) ensureDmChannel(pid);
+  if(!d.helloSent&&(!d.nick||d.nick===d.pid)) sendDmRequest(d); /* ник неизвестен — просим handshake */
   S.curDm=pid;
   d.unread=0; saveDialogs(); renderDms();
   renderDmHeader(); renderDmLog();
@@ -2626,6 +2709,7 @@ async function sendDmMessage(){
   if(!d.helloSent){ sendDmRequest(d); }
   deliver();
   dmTypingPing();
+  sndMsg('out');
 }
 function armDmAckTimer(d,id){
   d.pendingMsgId=id;
@@ -2748,6 +2832,7 @@ function renderProfile(){
   $('prof-nick').value=S.nick;
   $('prof-id').textContent=S.pid;
   $('sound-btn').textContent='ЗВУК: '+(store.get('sound',true)?'ВКЛ':'ВЫКЛ');
+  renderSounds();
   renderThemeUi();
   const bl=$('blocked-list');
   if(!S.blocked.length){ bl.innerHTML='<div class="note" style="padding:4px 0">СПИСОК ПУСТ.</div>'; return; }
@@ -2756,6 +2841,58 @@ function renderProfile(){
     '<span class="sfx muted">#'+esc(sfxOf(b.pid))+'</span></div>'+
     '<div class="row-s muted small">'+esc(b.pid)+'</div></div>'+
     '<div class="row-btns"><button class="btn btn-mini" data-unblock="'+esc(b.pid)+'">РАЗБЛОКИРОВАТЬ</button></div></div>').join('');
+}
+/* свои звуки: список слотов в профиле */
+function renderSounds(){
+  const sl=$('snd-list'); if(!sl) return;
+  const cs=store.get('customSounds',{})||{};
+  sl.innerHTML=Object.keys(SND_SLOTS).map(k=>
+    '<div class="row"><div class="row-main"><div class="row-t">'+SND_SLOTS[k]+'</div>'+
+    '<div class="row-s muted small">'+(cs[k]?'СВОЙ · '+esc(cs[k].n||'файл'):'СТАНДАРТНЫЙ')+'</div></div>'+
+    '<div class="row-btns">'+
+    '<button class="btn btn-mini" data-snd="pick:'+k+'">ВЫБРАТЬ</button>'+
+    '<button class="btn btn-mini" data-snd="play:'+k+'">ПРОСЛУШАТЬ</button>'+
+    (cs[k]?'<button class="btn btn-mini" data-snd="reset:'+k+'">СБРОС</button>':'')+
+    '</div></div>').join('');
+}
+async function sndPreview(slot){
+  try{
+    if(slot==='ring'||slot==='back'){
+      const stop=await sndPlayLoop(slot,slot==='ring'?800:1500);
+      if(stop) setTimeout(stop,3500);
+      else{ toneLoop(slot); setTimeout(toneStop,3600); }  /* нет своего — стандартный цикл */
+    }else{
+      const done=await sndPlayOnce(slot);
+      if(!done) synthTone(slot==='out'?660:880);
+    }
+  }catch(e){}
+}
+async function sndStoreFile(slot,f){
+  if(f.size>SND_MAX){ toast('Файл больше 400 КБ'); return; }
+  if(!(/^audio\//i.test(f.type)||/\.(mp3|ogg|oga|wav|m4a|mp4|aac|opus|webm)$/i.test(f.name))){
+    toast('Нужен аудиофайл: MP3, OGG, WAV или M4A'); return;
+  }
+  try{
+    const d=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result)); r.onerror=rej; r.readAsDataURL(f); });
+    /* проверяем, что звук реально декодируется, и ограничиваем длину */
+    const ab=await (await fetch(d)).arrayBuffer();
+    const buf=await sndCtx().decodeAudioData(ab);
+    if(buf.duration>SND_MAX_DUR){ toast('Слишком длинный звук: до 30 секунд'); return; }
+    const cs=store.get('customSounds',{})||{};
+    cs[slot]={d,n:f.name.slice(0,40)};
+    store.set('customSounds',cs);
+    try{ if(localStorage.getItem('skyle_customSounds')===null) toast('Хранилище переполнено — звук будет работать только до перезагрузки'); }catch(e){}
+    sndBufs.delete(slot);
+    /* если этот звук прямо сейчас играет в звонке — тихо перезапускаем с новым */
+    if((slot==='ring'&&C.incoming)||(slot==='back'&&C.dm&&!C.dm.answered&&C.dm.dir==='out')) toneLoop(slot);
+    renderProfile(); toast('Звук сохранён: '+SND_SLOTS[slot]);
+  }catch(err){ toast('Не удалось декодировать этот файл'); }
+}
+function sndReset(slot){
+  const cs=store.get('customSounds',{})||{};
+  delete cs[slot]; store.set('customSounds',cs); sndBufs.delete(slot);
+  if((slot==='ring'&&C.incoming)||(slot==='back'&&C.dm&&!C.dm.answered&&C.dm.dir==='out')) toneLoop(slot);
+  renderProfile(); toast('Звук сброшен: '+SND_SLOTS[slot]);
 }
 async function resetPersonalId(){
   const ok=await confirmBox('Старый ID перестанет работать, контакты потеряют вас. Продолжить?','СБРОСИТЬ');
@@ -2973,6 +3110,21 @@ function bindUi(){
   $('prof-reset').onclick=resetPersonalId;
   $('go-themes').onclick=openThemes;
   $('sound-btn').onclick=()=>{ store.set('sound',!store.get('sound',true)); renderProfile(); };
+  /* свои звуки: выбор файла, превью, сброс */
+  let sndPick=null;
+  $('snd-list').addEventListener('click',e=>{
+    const b=e.target.closest('[data-snd]'); if(!b) return;
+    const i=b.dataset.snd.indexOf(':'),act=b.dataset.snd.slice(0,i),slot=b.dataset.snd.slice(i+1);
+    if(act==='pick'){ sndPick=slot; $('snd-file').click(); }
+    else if(act==='play') sndPreview(slot);
+    else if(act==='reset') sndReset(slot);
+  });
+  $('snd-file').addEventListener('change',e=>{
+    const f=e.target.files[0]; e.target.value='';
+    if(!f||!sndPick) return;
+    const slot=sndPick; sndPick=null;
+    sndStoreFile(slot,f);
+  });
   $('blocked-list').addEventListener('click',e=>{
     const b=e.target.closest('[data-unblock]'); if(!b) return;
     S.blocked=S.blocked.filter(x=>x.pid!==b.dataset.unblock);
@@ -3038,7 +3190,16 @@ function bindUi(){
 function closeMembersPanel(){ $('room-members').classList.remove('open'); $('room-backdrop').classList.remove('show'); }
 
 /* ---------------- ЗАПУСК ---------------- */
-function startNet(){ if(netUp||!T.mod) return; netUp=true; joinLobby(); openDmInbox(); }
+function startNet(){ if(netUp||!T.mod) return; netUp=true; joinLobby(); openDmInbox(); helloMissingNicks(); }
+/* после загрузки: по диалогам с неизвестным ником (висит голый ID) отправляем hi повторно —
+   собеседник ответит hey с ником и ключом; в рамках сессии на диалог не чаще одного раза */
+function helloMissingNicks(){
+  setTimeout(()=>{
+    for(const d of S.dialogs){
+      if((!d.nick||d.nick===d.pid)&&!d.helloSent&&T.mod) sendDmRequest(d);
+    }
+  },2000);
+}
 (async function init(){
   try{
     bindUi(); vvInit(); applyTheme(); renderThemeUi(); applyBg(); /* фон применён и до отрисовки (head), это страховка */
@@ -3065,7 +3226,8 @@ function startNet(){ if(netUp||!T.mod) return; netUp=true; joinLobby(); openDmIn
 addEventListener('pagehide',()=>{ if(C.dm) dmCallEnd(null,true); if(C.room) roomCallEnd(null); if(S.room) leaveRoom(); for(const pid of [...S.chans.keys()]) closeDmChannel(pid); });
 
 /* Доступ для автотестов (на работу не влияет) */
-window.__skyle={S,C,showScreen,renderRoomLog,renderDmLog,renderDmHeader,renderMembers,renderDms,renderRooms,renderPublic,renderProfile,renderThemes,applyTheme,applyPreset,applyBg,syncReqPop,esc,sfxOf,deleteDialog};
+window.__skyle={S,C,showScreen,renderRoomLog,renderDmLog,renderDmHeader,renderMembers,renderDms,renderRooms,renderPublic,renderProfile,renderThemes,applyTheme,applyPreset,applyBg,syncReqPop,esc,sfxOf,deleteDialog,
+  sndMsg,toneLoop,toneStop,sndCustom,sndInfo:()=>({slots:SND_SLOTS,custom:store.get('customSounds',null),bufs:[...sndBufs.keys()]})};
 </script>
 </body>
 </html>
