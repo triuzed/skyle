@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>rostelechat — панель управления</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; }
+  body {
+    font-family: Tahoma, Verdana, Geneva, sans-serif;
+    font-size: 12px;
+    color: #1e2a35;
+    background-color: #4d6f8d;
+    background-repeat: no-repeat;
+    background-position: center top;
+    background-size: cover;
+    background-attachment: fixed;
+  }
+  /* ============ OUTER PAGE ============ */
+  #pagewrap { max-width: 860px; margin: 18px auto 40px auto; }
+  .router-header {
+    background: linear-gradient(#5a80a0 0%, #3c5871 100%);
+    border: 1px solid #233647;
+    border-bottom: none;
+    padding: 8px 12px;
+    color: #fff;
+    display: flex; align-items: center;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.35);
+  }
+  .router-header .logo {
+    font-size: 20px; font-weight: bold; letter-spacing: 1px;
+    text-shadow: 1px 1px 1px #1a2733;
+    font-family: "Trebuchet MS", Tahoma, sans-serif;
+  }
+  .router-header .logo .dot { color: #ffd24d; }
+  .router-header .model { margin-left: auto; text-align: right; font-size: 11px; color: #c6d8e6; }
+  .router-header .model b { color:#fff; }
+  .fw-bar {
+    background: repeating-linear-gradient(90deg, #233647 0 10px, #2e465c 10px 20px);
+    height: 8px; border: 1px solid #233647; border-top: none;
+  }
+  /* ============ MAIN FRAME ============ */
+  #frame {
+    background: #dfe7ee;
+    border: 1px solid #233647;
+    border-top: 2px solid #7fa0bc;
+    box-shadow: 2px 3px 8px rgba(0,0,0,.35);
+  }
+  #frame-inner { padding: 10px; display: flex; gap: 10px; align-items: flex-start; }
+  /* ---- left menu ---- */
+  #menu {
+    width: 168px; flex-shrink: 0;
+    background: #eef2f6;
+    border: 1px solid #9db1c2;
+  }
+  #menu .menu-title {
+    background: linear-gradient(#7d9db8, #5a7d99);
+    color: #fff; padding: 5px 8px; font-weight: bold; font-size: 11px;
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+  #menu ul { list-style: none; margin: 0; padding: 0; }
+  #menu li { border-bottom: 1px solid #d4dee6; }
+  #menu a {
+    display: block; padding: 7px 10px; color: #24435d;
+    text-decoration: none; font-weight: bold; cursor: pointer;
+  }
+  #menu a:hover { background: #dce7ef; }
+  #menu a.active {
+    background: linear-gradient(#4d7091, #3c5871);
+    color: #fff; text-shadow: 0 1px 1px #233647;
+  }
+  #menu .menu-foot { padding: 8px; font-size: 10px; color: #6c8296; }
+  /* ---- content ---- */
+  #content { flex: 1; min-width: 0; }
+  .page-title {
+    background: linear-gradient(#8fadc4, #64819b);
+    border: 1px solid #56718a;
+    color: #fff; font-weight: bold; font-size: 13px;
+    padding: 6px 10px; letter-spacing: .5px;
+    text-shadow: 0 1px 1px #405a70;
+  }
+  .panel {
+    background: #f4f7fa;
+    border: 1px solid #9db1c2;
+    border-top: none;
+    margin-bottom: 10px;
+  }
+  .panel .panel-head {
+    background: linear-gradient(#e6edf3, #d3dde6);
+    border-bottom: 1px solid #b4c4d2;
+    padding: 5px 10px; font-weight: bold; color: #2c4a63;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+  }
+  .panel .panel-body { padding: 10px; }
+  table.form { width: 100%; border-collapse: collapse; }
+  table.form td { padding: 5px 8px; vertical-align: middle; }
+  table.form td.k { width: 160px; color: #33506b; font-weight: bold; text-align: right; }
+  table.status { width: 100%; border-collapse: collapse; background: #fff; }
+  table.status th, table.status td {
+    border: 1px solid #b4c4d2; padding: 4px 8px; font-size: 11px; text-align: left;
+  }
+  table.status th { background: #dfe8f0; color: #2c4a63; }
+  .help {
+    font-size: 10px; color: #5b7590; background: #fdfbe4;
+    border: 1px dashed #c9bc6a; padding: 6px 9px; margin-top: 10px; line-height: 1.5;
+  }
+  .help b { color: #7a6b1f; }
+  /* ============ CONTROLS ============ */
+  input[type=text] {
+    font-family: Tahoma, Verdana, sans-serif; font-size: 12px;
+    border: 1px solid #7f97ab; background: #fff url() no-repeat;
+    padding: 4px 5px; color: #1e2a35;
+    box-shadow: inset 1px 1px 2px rgba(0,0,0,.12);
+  }
+  input[type=text]:focus { outline: none; border-color: #4d7091; background-color: #fffdf2; }
+  input[type=text][readonly] { background: #e6ebee; color: #566a7c; }
+  textarea {
+    font-family: Tahoma, Verdana, sans-serif; font-size: 11px;
+    border: 1px solid #7f97ab; padding: 4px; width: 100%;
+    box-shadow: inset 1px 1px 2px rgba(0,0,0,.12);
+    resize: vertical;
+  }
+  .btn {
+    font-family: Tahoma, Verdana, sans-serif; font-size: 11px; font-weight: bold;
+    color: #1c3247; padding: 4px 14px;
+    background: linear-gradient(#fdfdfd 0%, #dde4ea 45%, #c2ced8 100%);
+    border: 1px solid #7d94a7; border-radius: 3px;
+    cursor: pointer; text-shadow: 0 1px 0 #fff;
+  }
+  .btn:hover { background: linear-gradient(#ffffff, #e8eef3 45%, #cfdae3); }
+  .btn:active { background: linear-gradient(#c2ced8, #dde4ea); }
+  .btn-primary {
+    color: #fff; border-color: #33506b;
+    background: linear-gradient(#6f94b3 0%, #4d7091 50%, #3c5871 100%);
+    text-shadow: 0 1px 1px #2b4157;
+  }
+  .btn-primary:hover { background: linear-gradient(#7fa0bc, #587d9d 50%, #476785); }
+  .btn-danger { color: #7c1f1f; border-color: #a35555; }
+  .btn-mini { padding: 2px 8px; font-size: 10px; }
+  /* ============ LEDS ============ */
+  .led {
+    display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+    border: 1px solid #556; vertical-align: middle; margin-right: 5px;
+    background: radial-gradient(circle at 35% 30%, #eee, #999);
+  }
+  .led-green { background: radial-gradient(circle at 35% 30%, #b6ffb0, #23a01d); border-color: #17700f; box-shadow: 0 0 4px #3fdd35; }
+  .led-yellow { background: radial-gradient(circle at 35% 30%, #fff3b0, #e8b30e); border-color: #a67c08; box-shadow: 0 0 4px #ffd24d; }
+  .led-red { background: radial-gradient(circle at 35% 30%, #ffb0b0, #cf2020); border-color: #8f1010; box-shadow: 0 0 4px #ff5a5a; }
+  .led.blink { animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: .25; } }
+  /* ============ CHAT ============ */
+  #chatlog {
+    height: 300px; overflow-y: auto; background: #fff;
+    border: 1px solid #9db1c2; padding: 8px;
+    box-shadow: inset 1px 1px 3px rgba(0,0,0,.1);
+    scroll-behavior: smooth;
+  }
+  .msg { margin-bottom: 7px; line-height: 1.45; word-wrap: break-word; }
+  .msg .meta { font-size: 10px; color: #6c8296; }
+  .msg .nick { font-weight: bold; color: #33506b; }
+  .msg.mine .nick { color: #1a7a3c; }
+  .msg .text { display: inline; color: #1e2a35; }
+  .msg .peer-tag { color:#fff; background:#8296a5; font-size:9px; padding:1px 4px; border-radius:2px; margin-right:4px; }
+  .sysmsg { color: #7a6b1f; font-size: 10px; font-style: italic; margin: 4px 0; }
+  #chatbar { display: flex; gap: 6px; margin-top: 8px; }
+  #chatbar input[type=text] { flex: 1; }
+  /* ============ STATUS BAR ============ */
+  #statusbar {
+    background: linear-gradient(#3c5871, #2e465c);
+    border: 1px solid #233647; border-top: 1px solid #56718a;
+    color: #b8cbdb; font-size: 10px; padding: 4px 10px;
+    display: flex; justify-content: space-between;
+  }
+  .footer {
+    text-align: center; color: #dbe7f0; font-size: 10px; margin-top: 12px;
+    text-shadow: 0 1px 1px #2b4157;
+  }
+  .modal-bg {
+    display:none; position: fixed; inset: 0; background: rgba(20,32,44,.55); z-index: 50;
+  }
+  .modal-bg .modal {
+    width: 420px; margin: 90px auto; background: #f4f7fa;
+    border: 1px solid #233647; box-shadow: 3px 4px 12px rgba(0,0,0,.5);
+  }
+  /* connectivity boxes */
+  .two-col { display: flex; gap: 10px; flex-wrap: wrap; }
+  .two-col > div { flex: 1; min-width: 260px; }
+  .code-box { font-family: "Courier New", monospace; font-size: 10px; }
+  .ok-note { color:#1a7a3c; font-weight:bold; font-size:11px; }
+  .err-note { color:#a11; font-weight:bold; font-size:11px; }
+</style>
+</head>
+<body>
+<div id="pagewrap">
+  <div class="router-header">
+    <div class="logo">rostele<span class="dot">chat</span>&trade;</div>
+    <div class="model">Модель: <b>RTC-P2P v1.0</b><br>Firmware: 2010.11 (build 402)</div>
+  </div>
+  <div class="fw-bar"></div>
+
+  <div id="frame">
+    <div id="frame-inner">
+
+      <!-- ===== MENU ===== -->
+      <div id="menu">
+        <div class="menu-title">Меню</div>
+        <ul>
+          <li><a data-page="status" class="active">&#9679; Состояние</a></li>
+          <li><a data-page="chat">&#9679; Чат</a></li>
+          <li><a data-page="peers">&#9679; Подключение P2P</a></li>
+          <li><a data-page="settings">&#9679; Настройки</a></li>
+          <li><a data-page="sysinfo">&#9679; Системный журнал</a></li>
+        </ul>
+        <div class="menu-foot">
+          Индикация:<br>
+          <span class="led led-green"></span>соединение<br>
+          <span class="led led-yellow"></span>передача<br>
+          <span class="led led-red"></span>ошибка
+        </div>
+      </div>
+
+      <!-- ===== CONTENT ===== -->
+      <div id="content">
+
+        <!-- PAGE: STATUS -->
+        <div class="page" id="page-status">
+          <div class="page-title">Состояние устройства</div>
+          <div class="panel">
+            <div class="panel-head">Основная информация</div>
+            <div class="panel-body">
+              <table class="status">
+                <tr><th style="width:180px">Параметр</th><th>Значение</th></tr>
+                <tr><td>Устройство</td><td>rostelechat RTC-P2P v1.0</td></tr>
+                <tr><td>Имя пользователя</td><td id="st-nick">—</td></tr>
+                <tr><td>ID абонента (фиксированный)</td><td id="st-id" class="code-box">—</td></tr>
+                <tr><td>Статус сети P2P</td><td><span class="led led-red" id="st-led-net"></span><span id="st-net">Офлайн — подключите абонента</span></td></tr>
+                <tr><td>Установленных соединений</td><td id="st-peers">0</td></tr>
+                <tr><td>Время работы</td><td id="st-uptime">00:00:00</td></tr>
+                <tr><td>Фон интерфейса</td><td id="st-bg">Стандартный</td></tr>
+              </table>
+              <div class="help"><b>Примечание:</b> ID абонента генерируется автоматически при первом запуске и сохраняется в браузере. Сброс ID возможен в разделе «Настройки».</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PAGE: CHAT -->
+        <div class="page" id="page-chat" style="display:none">
+          <div class="page-title">Чат / P2P-сеанс</div>
+          <div class="panel">
+            <div class="panel-head">Протокол обмена сообщениями</div>
+            <div class="panel-body">
+              <div id="chatlog"></div>
+              <div id="chatbar">
+                <input type="text" id="chat-input" placeholder="Введите сообщение и нажмите Enter..." maxlength="2000">
+                <button class="btn btn-primary" id="btn-send">Отправить</button>
+              </div>
+              <div class="help"><b>Подсказка:</b> сообщение доставляется напрямую абонентам по каналу P2P. Откройте эту страницу в двух окнах браузера и подключите их друг к другу на странице «Подключение P2P», чтобы увидеть обмен.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PAGE: PEERS -->
+        <div class="page" id="page-peers" style="display:none">
+          <div class="page-title">Подключение P2P (ручное согласование)</div>
+          <div class="panel">
+            <div class="panel-head">Мастер подключения абонента</div>
+            <div class="panel-body">
+              <div class="two-col">
+                <div>
+                  <b>Шаг 1. Создать приглашение</b><br><br>
+                  <button class="btn" id="btn-offer">Создать код приглашения</button>
+                  <div style="margin-top:6px"><textarea id="offer-out" rows="5" class="code-box" readonly placeholder="Код появится здесь"></textarea></div>
+                  <div style="margin-top:6px"><button class="btn btn-mini" id="btn-copy-offer">Копировать в буфер</button></div>
+                </div>
+                <div>
+                  <b>Шаг 2. Вставить код другой стороны</b><br><br>
+                  <textarea id="answer-in" rows="5" class="code-box" placeholder="Вставьте код-ответ абонента"></textarea>
+                  <div style="margin-top:6px"><button class="btn btn-primary" id="btn-accept">Подключить</button></div>
+                  <div id="offer-status" style="margin-top:6px"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">Ответить на приглашение (вторая сторона)</div>
+            <div class="panel-body">
+              <table class="form">
+                <tr><td class="k">Код приглашения:</td><td><textarea id="offer-in" rows="5" class="code-box" placeholder="Вставьте код приглашения"></textarea></td></tr>
+              </table>
+              <div style="text-align:right; margin-top:6px">
+                <button class="btn btn-primary" id="btn-answer">Создать код-ответ</button>
+                <button class="btn btn-mini" id="btn-copy-answer">Копировать ответ</button>
+              </div>
+              <div style="margin-top:6px"><textarea id="answer-out" rows="4" class="code-box" readonly placeholder="Код-ответ появится здесь"></textarea></div>
+              <div id="answer-status" style="margin-top:6px"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">Список подключённых абонентов</div>
+            <div class="panel-body">
+              <table class="status" id="peers-table">
+                <tr><th style="width:200px">ID абонента</th><th>Ник</th><th style="width:110px">Состояние</th><th style="width:70px">Операция</th></tr>
+                <tr id="peers-empty"><td colspan="4" style="text-align:center;color:#6c8296">Нет активных соединений</td></tr>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- PAGE: SETTINGS -->
+        <div class="page" id="page-settings" style="display:none">
+          <div class="page-title">Настройки устройства</div>
+          <div class="panel">
+            <div class="panel-head">Профиль пользователя</div>
+            <div class="panel-body">
+              <table class="form">
+                <tr><td class="k">Никнейм:</td><td><input type="text" id="inp-nick" maxlength="24" style="width:220px"></td></tr>
+                <tr><td class="k">ID абонента:</td><td><input type="text" id="inp-id" readonly style="width:300px" class="code-box"> <button class="btn btn-danger btn-mini" id="btn-reset-id">Сбросить ID</button></td></tr>
+              </table>
+              <div class="help"><b>Внимание:</b> сброс ID сгенерирует новый идентификатор. Абоненты, подключённые к старому ID, будут отключены.</div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">Оформление интерфейса</div>
+            <div class="panel-body">
+              <table class="form">
+                <tr><td class="k">Фон страницы:</td>
+                  <td>
+                    <label><input type="radio" name="bgmode" value="default"> Стандартный (серо-синий)</label>&nbsp;&nbsp;
+                    <label><input type="radio" name="bgmode" value="color"> Одноцветный:</label>
+                    <input type="color" id="inp-bgcolor" value="#4d6f8d">&nbsp;&nbsp;
+                    <label><input type="radio" name="bgmode" value="url"> Изображение по ссылке:</label>
+                  </td></tr>
+                <tr><td class="k">URL изображения:</td><td><input type="text" id="inp-bgurl" style="width:420px" placeholder="http://example.ru/fon.jpg"></td></tr>
+              </table>
+              <div style="margin-top:8px; text-align:right">
+                <button class="btn btn-primary" id="btn-save">Сохранить настройки</button>
+                <button class="btn" id="btn-save-reboot">Сохранить и перезагрузить</button>
+              </div>
+              <div id="save-status" style="margin-top:6px"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">Обслуживание системы</div>
+            <div class="panel-body">
+              <button class="btn" id="btn-clear-chat">Очистить журнал чата</button>&nbsp;
+              <button class="btn btn-danger" id="btn-factory">Сброс к заводским настройкам</button>
+              <div class="help"><b>Заводской сброс:</b> удаляет никнейм, ID, фон и все сохранённые данные устройства.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PAGE: SYSINFO -->
+        <div class="page" id="page-sysinfo" style="display:none">
+          <div class="page-title">Системный журнал</div>
+          <div class="panel">
+            <div class="panel-head">Журнал событий (syslog)</div>
+            <div class="panel-body">
+              <div id="syslog" class="code-box" style="height:280px; overflow-y:auto; background:#101418; color:#7ec26a; padding:8px; border:1px solid #233647;"></div>
+              <div style="margin-top:8px"><button class="btn btn-mini" id="btn-clear-log">Очистить журнал</button></div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /content -->
+    </div><!-- /frame-inner -->
+  </div><!-- /frame -->
+
+  <div id="statusbar">
+    <div id="sb-left">Готово</div>
+    <div>Copyright &copy; 2010 rostelechat Ltd. Все права защищены. Версия ПО: 2010.11</div>
+  </div>
+  <div class="footer">Лучший в своей ценовой категории P2P-мессенджер. Оптимизировано для Internet Explorer 8 и разрешений 1024&times;768.</div>
+</div>
+
+<!-- modal: ID reset confirm -->
+<div class="modal-bg" id="modal-idreset">
+  <div class="modal">
+    <div class="panel-head" style="border-bottom:1px solid #b4c4d2; padding:6px 10px;">Подтверждение операции</div>
+    <div class="panel-body">
+      <p>Вы действительно хотите сбросить ID абонента? Эта операция необратима.</p>
+      <div style="text-align:right">
+        <button class="btn" id="modal-cancel">Отмена</button>
+        <button class="btn btn-primary" id="modal-ok">Подтвердить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =========================================================
+   rostelechat RTC-P2P v1.0 — панель управления
+   Настоящий P2P: WebRTC DataChannel, ручной обмен SDP-кодом.
+   ========================================================= */
+
+/* ---------- Хранилище ---------- */
+var store = {
+  get: function(k, d) { try { var v = localStorage.getItem("rtc_" + k); return v === null ? d : v; } catch(e) { return d; } },
+  set: function(k, v) { try { localStorage.setItem("rtc_" + k, v); } catch(e) {} },
+  del: function(k) { try { localStorage.removeItem("rtc_" + k); } catch(e) {} }
+};
+
+function makeId() {
+  var hex = "0123456789ABCDEF", s = "RTC-";
+  for (var i = 0; i < 12; i++) { s += hex[Math.floor(Math.random() * 16)]; if (i === 3 || i === 7) s += "-"; }
+  return s;
+}
+
+var state = {
+  nick: store.get("nick", ""),
+  id: store.get("id", "") || makeId(),
+  uptimeStart: Date.now()
+};
+store.set("id", state.id);
+if (!state.nick) { state.nick = "user" + state.id.slice(-4); store.set("nick", state.nick); }
+
+/* ---------- Журнал ---------- */
+var syslogEl = document.getElementById("syslog");
+function syslog(msg) {
+  var d = new Date();
+  function p2(n){ return (n<10?"0":"")+n; }
+  var line = "[" + p2(d.getHours()) + ":" + p2(d.getMinutes()) + ":" + p2(d.getSeconds()) + "] " + msg;
+  var div = document.createElement("div");
+  div.textContent = line;
+  syslogEl.appendChild(div);
+  syslogEl.scrollTop = syslogEl.scrollHeight;
+}
+
+/* ---------- Статусная строка ---------- */
+var sbLeft = document.getElementById("sb-left");
+function sb(msg) { sbLeft.textContent = msg; }
+
+/* ---------- Навигация ---------- */
+var menuLinks = document.querySelectorAll("#menu a");
+menuLinks.forEach(function(a) {
+  a.addEventListener("click", function() {
+    menuLinks.forEach(function(x) { x.classList.remove("active"); });
+    a.classList.add("active");
+    document.querySelectorAll(".page").forEach(function(p) { p.style.display = "none"; });
+    document.getElementById("page-" + a.dataset.page).style.display = "";
+    sb("Раздел: " + a.textContent.replace(/^\S+\s/, ""));
+  });
+});
+
+/* =========================================================
+   P2P: WebRTC DataChannel
+   ========================================================= */
+var peers = []; // {id(label), pc, dc, peerId, peerNick, li}
+var chatlogEl = document.getElementById("chatlog");
+
+function addMsg(nick, text, mine, peerTag) {
+  var d = new Date();
+  function p2(n){ return (n<10?"0":"")+n; }
+  var div = document.createElement("div");
+  div.className = "msg" + (mine ? " mine" : "");
+  div.innerHTML =
+    '<span class="meta">' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()) + '</span> ' +
+    (peerTag ? '<span class="peer-tag">P2P</span>' : '') +
+    '<span class="nick"></span>: <span class="text"></span>';
+  div.querySelector(".nick").textContent = nick;
+  div.querySelector(".text").textContent = text;
+  chatlogEl.appendChild(div);
+  chatlogEl.scrollTop = chatlogEl.scrollHeight;
+}
+function addSys(text) {
+  var div = document.createElement("div");
+  div.className = "sysmsg";
+  div.textContent = "*** " + text;
+  chatlogEl.appendChild(div);
+  chatlogEl.scrollTop = chatlogEl.scrollHeight;
+}
+
+function setStatusLeds() {
+  var up = peers.some(function(p){ return p.dc && p.dc.readyState === "open"; });
+  var led = document.getElementById("st-led-net");
+  var st = document.getElementById("st-net");
+  led.className = "led " + (up ? "led-green" : (peers.length ? "led-yellow blink" : "led-red"));
+  st.textContent = up ? "Онлайн — сеанс P2P активен" : (peers.length ? "Установка соединения..." : "Офлайн — подключите абонента");
+  document.getElementById("st-peers").textContent = peers.length;
+}
+
+function registerPeer(pc, dc, label) {
+  var rec = { pc: pc, dc: dc, label: label, peerId: null, peerNick: "?" };
+  peers.push(rec);
+  dc.addEventListener("open", function() {
+    addSys("Канал P2P установлен.");
+    syslog("P2P channel OPEN, label=" + label);
+    dc.send(JSON.stringify({ t: "hello", id: state.id, nick: state.nick }));
+    setStatusLeds();
+    sb("Соединение установлено");
+  });
+  dc.addEventListener("message", function(ev) {
+    try {
+      var m = JSON.parse(ev.data);
+      if (m.t === "hello") {
+        rec.peerId = m.id; rec.peerNick = m.nick;
+        addSys("Абонент представился: " + m.nick + " (" + m.id + ")");
+        syslog("HELLO from " + m.nick + " id=" + m.id);
+        refreshPeersTable();
+      } else if (m.t === "msg") {
+        addMsg(m.nick, m.text, false, true);
+        syslog("MSG from " + m.nick);
+      } else if (m.t === "idreset") {
+        rec.peerId = m.id;
+        addSys("Абонент " + m.nick + " сбросил ID, новый: " + m.id);
+        refreshPeersTable();
+      }
+    } catch(e) { syslog("ERR: bad packet " + e.message); }
+  });
+  dc.addEventListener("close", function() {
+    addSys("Соединение с абонентом разорвано.");
+    syslog("P2P channel CLOSED, label=" + label);
+    peers = peers.filter(function(p){ return p !== rec; });
+    refreshPeersTable(); setStatusLeds();
+  });
+  dc.addEventListener("error", function() { syslog("ERR: P2P error, label=" + label); });
+  setStatusLeds();
+}
+
+function compressSdp(desc) {
+  return btoa(unescape(encodeURIComponent(JSON.stringify(desc)))).replace(/=+$/, "");
+}
+function decompressSdp(str) {
+  return JSON.parse(decodeURIComponent(escape(atob(str.trim()))));
+}
+
+/* --- Создание приглашения (offer) --- */
+document.getElementById("btn-offer").addEventListener("click", function() {
+  var out = document.getElementById("offer-out");
+  out.value = ""; document.getElementById("offer-status").textContent = "";
+  var pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun.services.mozilla.com" }] });
+  var dc = pc.createDataChannel("rostelechat", { ordered: true });
+  registerPeer(pc, dc, "host-" + Date.now().toString(36));
+  var gathering = false;
+  pc.onicegatheringstatechange = function() {
+    if (pc.iceGatheringState === "complete" && !gathering) {
+      gathering = true;
+      out.value = compressSdp(pc.localDescription);
+      syslog("OFFER ready (" + out.value.length + " bytes)");
+      document.getElementById("offer-status").innerHTML = '<span class="ok-note">Код приглашения готов. Отправьте его абоненту.</span>';
+      sb("Код приглашения создан");
+    }
+  };
+  pc.createOffer().then(function(offer) { return pc.setLocalDescription(offer); })
+    .then(function() { document.getElementById("offer-status").innerHTML = '<span style="color:#5b7590">Сбор сетевых данных (ICE)... подождите несколько секунд.</span>'; })
+    .catch(function(e) { syslog("ERR offer: " + e.message); document.getElementById("offer-status").innerHTML = '<span class="err-note">Ошибка: ' + e.message + '</span>'; });
+  setTimeout(function() {
+    if (!gathering && pc.localDescription) {
+      gathering = true;
+      out.value = compressSdp(pc.localDescription);
+      syslog("OFFER ready (ICE timeout fallback, " + out.value.length + " bytes)");
+      document.getElementById("offer-status").innerHTML = '<span class="ok-note">Код приглашения готов. Отправьте его абоненту.</span>';
+      sb("Код приглашения создан");
+    }
+  }, 5000);
+});
+
+/* --- Ответ на приглашение (answer) --- */
+var pendingAnswer = null;
+document.getElementById("btn-answer").addEventListener("click", function() {
+  var stat = document.getElementById("answer-status");
+  var out = document.getElementById("answer-out");
+  out.value = ""; stat.textContent = "";
+  try {
+    var offer = decompressSdp(document.getElementById("offer-in").value);
+    var pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun.services.mozilla.com" }] });
+    pendingAnswer = pc;
+    pc.ondatachannel = function(ev) { registerPeer(pc, ev.channel, "guest-" + Date.now().toString(36)); };
+    var gathering = false;
+    pc.onicegatheringstatechange = function() {
+      if (pc.iceGatheringState === "complete" && !gathering) {
+        gathering = true;
+        out.value = compressSdp(pc.localDescription);
+        syslog("ANSWER ready (" + out.value.length + " bytes)");
+        stat.innerHTML = '<span class="ok-note">Код-ответ готов. Отправьте его обратно абоненту, создавшему приглашение.</span>';
+        sb("Код-ответ создан");
+      }
+    };
+    pc.setRemoteDescription(offer).then(function() { return pc.createAnswer(); })
+      .then(function(a) { return pc.setLocalDescription(a); })
+      .then(function() { stat.innerHTML = '<span style="color:#5b7590">Сбор сетевых данных (ICE)... подождите несколько секунд.</span>'; })
+      .catch(function(e) { syslog("ERR answer: " + e.message); stat.innerHTML = '<span class="err-note">Ошибка: ' + e.message + '</span>'; pendingAnswer = null; });
+    setTimeout(function() {
+      if (!gathering && pc.localDescription && pc.localDescription.type === "answer") {
+        gathering = true;
+        out.value = compressSdp(pc.localDescription);
+        syslog("ANSWER ready (ICE timeout fallback, " + out.value.length + " bytes)");
+        stat.innerHTML = '<span class="ok-note">Код-ответ готов. Отправьте его обратно абоненту, создавшему приглашение.</span>';
+        sb("Код-ответ создан");
+      }
+    }, 5000);
+  } catch(e) {
+    stat.innerHTML = '<span class="err-note">Некорректный код приглашения.</span>';
+    syslog("ERR: invalid offer code");
+  }
+});
+
+/* --- Принятие ответа --- */
+document.getElementById("btn-accept").addEventListener("click", function() {
+  var stat = document.getElementById("offer-status");
+  try {
+    var answer = decompressSdp(document.getElementById("answer-in").value);
+    // найти последнюю created-offer pc без remoteDescription
+    var target = null;
+    peers.forEach(function(p) { if (!p.pc.remoteDescription || p.pc.remoteDescription.type === "offer") { if (p.pc.signalingState === "have-local-offer") target = p; } });
+    if (!target) { stat.innerHTML = '<span class="err-note">Сначала создайте код приглашения (шаг 1).</span>'; return; }
+    target.pc.setRemoteDescription(answer).then(function() {
+      syslog("ANSWER accepted, connecting...");
+      stat.innerHTML = '<span class="ok-note">Код принят. Устанавливается соединение...</span>';
+      sb("Установка соединения...");
+    }).catch(function(e) {
+      syslog("ERR accept: " + e.message);
+      stat.innerHTML = '<span class="err-note">Ошибка: ' + e.message + '</span>';
+    });
+  } catch(e) {
+    stat.innerHTML = '<span class="err-note">Некорректный код-ответ.</span>';
+  }
+});
+
+/* --- Копирование кодов --- */
+function bindCopy(btnId, taId, sbMsg) {
+  document.getElementById(btnId).addEventListener("click", function() {
+    var ta = document.getElementById(taId);
+    if (!ta.value) { sb("Нечего копировать"); return; }
+    ta.select();
+    try { document.execCommand("copy"); } catch(e) {}
+    if (navigator.clipboard) navigator.clipboard.writeText(ta.value).catch(function(){});
+    sb(sbMsg);
+  });
+}
+bindCopy("btn-copy-offer", "offer-out", "Код приглашения скопирован");
+bindCopy("btn-copy-answer", "answer-out", "Код-ответ скопирован");
+
+/* --- Таблица абонентов --- */
+function refreshPeersTable() {
+  var tbl = document.getElementById("peers-table");
+  tbl.querySelectorAll("tr.peerrow").forEach(function(r){ r.remove(); });
+  var empty = document.getElementById("peers-empty");
+  if (!peers.length) { empty.style.display = ""; return; }
+  empty.style.display = "none";
+  peers.forEach(function(p, i) {
+    var tr = document.createElement("tr");
+    tr.className = "peerrow";
+    var stTxt = p.dc && p.dc.readyState === "open" ? "Установлено" : "Ожидание";
+    tr.innerHTML =
+      '<td class="code-box">' + (p.peerId || "(ожидание приветствия)") + '</td>' +
+      '<td>' + (p.peerNick || "?") + '</td>' +
+      '<td>' + (stTxt === "Установлено" ? '<span class="led led-green"></span>' : '<span class="led led-yellow blink"></span>') + stTxt + '</td>' +
+      '<td><button class="btn btn-danger btn-mini">Отключить</button></td>';
+    tr.querySelector("button").addEventListener("click", function() {
+      try { p.pc.close(); } catch(e) {}
+      peers.splice(i, 1);
+      refreshPeersTable(); setStatusLeds();
+      syslog("Peer disconnected by operator");
+    });
+    tbl.appendChild(tr);
+  });
+}
+
+/* =========================================================
+   Чат
+   ========================================================= */
+function sendChat() {
+  var inp = document.getElementById("chat-input");
+  var text = inp.value.trim();
+  if (!text) return;
+  addMsg(state.nick, text, true);
+  var packet = JSON.stringify({ t: "msg", nick: state.nick, text: text });
+  var sent = 0;
+  peers.forEach(function(p) { if (p.dc && p.dc.readyState === "open") { p.dc.send(packet); sent++; } });
+  syslog("MSG sent to " + sent + " peer(s)");
+  if (!sent) addSys("Нет активных абонентов — сообщение не доставлено.");
+  inp.value = "";
+  sb("Сообщение отправлено: " + sent + " абонент(ов)");
+}
+document.getElementById("btn-send").addEventListener("click", sendChat);
+document.getElementById("chat-input").addEventListener("keydown", function(e) { if (e.key === "Enter") sendChat(); });
+
+/* =========================================================
+   Настройки
+   ========================================================= */
+function applyBackground() {
+  var mode = store.get("bgmode", "default");
+  var color = store.get("bgcolor", "#4d6f8d");
+  var url = store.get("bgurl", "");
+  var body = document.body;
+  body.style.backgroundImage = "";
+  if (mode === "color") {
+    body.style.backgroundColor = color;
+  } else if (mode === "url" && url) {
+    body.style.backgroundColor = "#4d6f8d";
+    body.style.backgroundImage = "url(" + JSON.stringify(url).slice(1, -1).replace(/"/g, '\\"') + ")";
+  } else {
+    body.style.backgroundColor = "#4d6f8d";
+  }
+  document.getElementById("st-bg").textContent =
+    mode === "color" ? "Одноцветный (" + color + ")" : (mode === "url" && url ? "Изображение" : "Стандартный");
+}
+
+function loadSettingsForm() {
+  document.getElementById("inp-nick").value = state.nick;
+  document.getElementById("inp-id").value = state.id;
+  var mode = store.get("bgmode", "default");
+  document.querySelectorAll("input[name=bgmode]").forEach(function(r) { r.checked = r.value === mode; });
+  document.getElementById("inp-bgcolor").value = store.get("bgcolor", "#4d6f8d");
+  document.getElementById("inp-bgurl").value = store.get("bgurl", "");
+}
+
+document.getElementById("btn-save").addEventListener("click", function() { saveSettings(false); });
+document.getElementById("btn-save-reboot").addEventListener("click", function() { saveSettings(true); });
+
+function saveSettings(reboot) {
+  var nick = document.getElementById("inp-nick").value.trim();
+  if (!nick) nick = state.nick;
+  var nickChanged = nick !== state.nick;
+  state.nick = nick;
+  store.set("nick", nick);
+  var modeEl = document.querySelector("input[name=bgmode]:checked");
+  var mode = modeEl ? modeEl.value : "default";
+  store.set("bgmode", mode);
+  store.set("bgcolor", document.getElementById("inp-bgcolor").value);
+  store.set("bgurl", document.getElementById("inp-bgurl").value.trim());
+  applyBackground(); refreshStatus();
+  syslog("CONFIG saved (mode=" + mode + ", nick=" + nick + ")");
+  document.getElementById("save-status").innerHTML = '<span class="ok-note">Настройки сохранены в энергонезависимую память.</span>';
+  sb("Настройки сохранены");
+  if (reboot) {
+    syslog("SYSTEM: rebooting...");
+    sb("Перезагрузка...");
+    setTimeout(function() { location.reload(); }, 900);
+  }
+}
+
+/* --- Сброс ID --- */
+document.getElementById("btn-reset-id").addEventListener("click", function() {
+  document.getElementById("modal-idreset").style.display = "block";
+});
+document.getElementById("modal-cancel").addEventListener("click", function() {
+  document.getElementById("modal-idreset").style.display = "none";
+});
+document.getElementById("modal-ok").addEventListener("click", function() {
+  document.getElementById("modal-idreset").style.display = "none";
+  state.id = makeId();
+  store.set("id", state.id);
+  document.getElementById("inp-id").value = state.id;
+  refreshStatus();
+  syslog("OPERATOR: peer ID reset -> " + state.id);
+  peers.forEach(function(p) {
+    if (p.dc && p.dc.readyState === "open") p.dc.send(JSON.stringify({ t: "idreset", id: state.id, nick: state.nick }));
+  });
+  addSys("ID абонента сброшен. Новый ID: " + state.id);
+  sb("ID сброшен: " + state.id);
+});
+
+/* --- Обслуживание --- */
+document.getElementById("btn-clear-chat").addEventListener("click", function() {
+  chatlogEl.innerHTML = "";
+  addSys("Журнал чата очищен оператором.");
+  syslog("Chat log cleared");
+});
+document.getElementById("btn-clear-log").addEventListener("click", function() { syslogEl.innerHTML = ""; });
+document.getElementById("btn-factory").addEventListener("click", function() {
+  if (!confirm("Сбросить устройство к заводским настройкам? Все данные будут удалены.")) return;
+  ["nick", "id", "bgmode", "bgcolor", "bgurl"].forEach(store.del);
+  syslog("FACTORY RESET executed");
+  setTimeout(function() { location.reload(); }, 500);
+});
+
+/* =========================================================
+   Статус / аптайм
+   ========================================================= */
+function refreshStatus() {
+  document.getElementById("st-nick").textContent = state.nick;
+  document.getElementById("st-id").textContent = state.id;
+}
+function uptimeTick() {
+  var s = Math.floor((Date.now() - state.uptimeStart) / 1000);
+  var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  function p2(n){ return (n<10?"0":"")+n; }
+  document.getElementById("st-uptime").textContent = p2(h) + ":" + p2(m) + ":" + p2(sec);
+}
+setInterval(uptimeTick, 1000);
+
+/* =========================================================
+   Инициализация
+   ========================================================= */
+applyBackground();
+loadSettingsForm();
+refreshStatus();
+setStatusLeds();
+uptimeTick();
+addSys("Добро пожаловать в rostelechat! Ваш ID: " + state.id + ", ник: " + state.nick);
+addSys("Подключение к абонентам — в разделе «Подключение P2P».");
+syslog("SYSTEM BOOT: rostelechat RTC-P2P v1.0");
+syslog("Init: nickname=" + state.nick + " peerId=" + state.id);
+syslog("WebRTC subsystem: ready");
+sb("Готово");
+</script>
+</body>
+</html>
